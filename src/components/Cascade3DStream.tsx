@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useCallback, memo } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import {
   Github,
@@ -21,7 +21,7 @@ interface Cascade3DStreamProps {
   onOpenLiquidLightArticle: (repo: Repository) => void;
 }
 
-export const Cascade3DStream: React.FC<Cascade3DStreamProps> = ({
+export const Cascade3DStream = memo(function Cascade3DStream({
   repositories,
   lightingMode,
   onLightingChange,
@@ -29,56 +29,72 @@ export const Cascade3DStream: React.FC<Cascade3DStreamProps> = ({
   onOpenRulesModal,
   onOpenCliBackend,
   onOpenLiquidLightArticle,
-}) => {
+}: Cascade3DStreamProps) {
   const defaultIndex = repositories.findIndex((r) => r.id === 'ManosAbiertas');
   const [activeIndex, setActiveIndex] = useState(defaultIndex !== -1 ? defaultIndex : 1);
   const [isDrawerOpen, setIsDrawerOpen] = useState(false);
 
   // Micro-distortion pointer tracking for active glass card
+  // Throttled por rAF: antes hacía setState en cada pixel de mouse (60/s re-renders).
   const [tilt, setTilt] = useState<{ x: number; y: number; sheenX: number; sheenY: number }>({
     x: 0,
     y: 0,
     sheenX: 0,
     sheenY: 0,
   });
+  const tiltRaf = useRef(0);
 
   const containerRef = useRef<HTMLDivElement>(null);
+  const wheelLock = useRef(0);
+  if (repositories.length === 0) return null;
   const activeRepo = repositories[activeIndex] || repositories[0];
 
   // Navigation functions
-  const goToNext = () => {
+  const goToNext = useCallback(() => {
     setActiveIndex((prev) => (prev + 1) % repositories.length);
-  };
+  }, [repositories.length]);
 
-  const goToPrev = () => {
+  const goToPrev = useCallback(() => {
     setActiveIndex((prev) => (prev - 1 + repositories.length) % repositories.length);
-  };
+  }, [repositories.length]);
 
-  const goToIndex = (idx: number) => {
+  const goToIndex = useCallback((idx: number) => {
     setActiveIndex(idx);
-  };
+  }, []);
 
   // Keyboard navigation
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
+      const target = e.target as HTMLElement | null;
+      if (target && (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.isContentEditable)) {
+        return;
+      }
       if (e.key === '`' || e.key === '~') {
         e.preventDefault();
         onOpenCliBackend();
         return;
       }
       if (e.key === 'ArrowDown' || e.key === 'ArrowRight') {
+        e.preventDefault();
         goToNext();
       } else if (e.key === 'ArrowUp' || e.key === 'ArrowLeft') {
+        e.preventDefault();
         goToPrev();
       }
     };
     window.addEventListener('keydown', handleKeyDown);
-    return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [repositories.length]);
+    return () => {
+      window.removeEventListener('keydown', handleKeyDown);
+      cancelAnimationFrame(tiltRaf.current);
+    };
+  }, [goToNext, goToPrev, onOpenCliBackend]);
 
-  // Mouse wheel scrolling
+  // Mouse wheel scrolling (throttled 350ms: antes cambiaba de card 60 veces/segundo)
   const handleWheel = (e: React.WheelEvent) => {
+    const now = Date.now();
+    if (now - wheelLock.current < 350) return;
     if (Math.abs(e.deltaY) > 35) {
+      wheelLock.current = now;
       if (e.deltaY > 0) {
         goToNext();
       } else {
@@ -104,16 +120,22 @@ export const Cascade3DStream: React.FC<Cascade3DStreamProps> = ({
     }
   };
 
-  // Micro-distortion pointer tracking
+  // Micro-distortion pointer tracking (rAF-throttled)
   const handleMouseMove = (e: React.MouseEvent<HTMLDivElement>) => {
+    if (tiltRaf.current) return;
     const rect = e.currentTarget.getBoundingClientRect();
-    const x = (e.clientX - rect.left) / rect.width - 0.5;
-    const y = (e.clientY - rect.top) / rect.height - 0.5;
-    setTilt({
-      x: x * 5,
-      y: -y * 5,
-      sheenX: x * 25,
-      sheenY: y * 25,
+    const cx = e.clientX;
+    const cy = e.clientY;
+    tiltRaf.current = requestAnimationFrame(() => {
+      tiltRaf.current = 0;
+      const x = (cx - rect.left) / rect.width - 0.5;
+      const y = (cy - rect.top) / rect.height - 0.5;
+      setTilt({
+        x: x * 5,
+        y: -y * 5,
+        sheenX: x * 25,
+        sheenY: y * 25,
+      });
     });
   };
 
@@ -379,5 +401,4 @@ export const Cascade3DStream: React.FC<Cascade3DStreamProps> = ({
       />
     </div>
   );
-};
-
+});

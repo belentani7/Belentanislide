@@ -1,4 +1,4 @@
-import React from 'react';
+import { memo } from 'react';
 import { Repository } from '../types';
 import { RepoIcon } from './RepoIcon';
 import { Sparkles, BookOpen } from 'lucide-react';
@@ -10,11 +10,11 @@ interface IconGalleryStripProps {
   selectedRepoId?: string;
 }
 
-export const IconGalleryStrip: React.FC<IconGalleryStripProps> = ({
+export const IconGalleryStrip = memo(function IconGalleryStrip({
   repositories,
   onSelectRepo,
   selectedRepoId,
-}) => {
+}: IconGalleryStripProps) {
   const educationRepos = repositories.filter((r) => r.isEducation);
   const otherRepos = repositories.filter((r) => !r.isEducation);
 
@@ -24,7 +24,7 @@ export const IconGalleryStrip: React.FC<IconGalleryStripProps> = ({
       <div className="rounded-[36px] border border-purple-500/20 bg-black/70 p-6 sm:p-8 backdrop-blur-3xl shadow-[0_20px_70px_rgba(0,0,0,0.95),0_0_60px_rgba(168,85,247,0.1)]">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-6 pb-4 border-b border-purple-500/15">
           <div className="flex items-center gap-2.5">
-            <span className="flex h-2 w-2 rounded-full bg-purple-400 shadow-[0_0_10px_#c084fc]" />
+            <span aria-hidden="true" className="flex h-2 w-2 rounded-full bg-purple-400 shadow-[0_0_10px_#c084fc]" />
             <h2 className="font-mono text-xs uppercase tracking-[0.2em] text-purple-200">
               MATRIZ DE ICONOS REACTIVOS · ALTA RESOLUCIÓN
             </h2>
@@ -38,7 +38,7 @@ export const IconGalleryStrip: React.FC<IconGalleryStripProps> = ({
         <div className="mb-8">
           <div className="flex items-center gap-2 mb-4">
             <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-purple-900/40 border border-purple-400/30 text-purple-200 font-mono text-[10px] tracking-wider uppercase shadow-[0_0_15px_rgba(192,132,252,0.25)]">
-              <BookOpen className="w-3 h-3 text-purple-300" />
+              <BookOpen aria-hidden="true" className="w-3 h-3 text-purple-300" />
               1. REPOS DE EDUCACIÓN & APRENDIZAJE ABIERTO (PRIORIDAD)
             </span>
             <div className="h-px flex-1 bg-gradient-to-r from-purple-500/30 to-transparent" />
@@ -53,6 +53,10 @@ export const IconGalleryStrip: React.FC<IconGalleryStripProps> = ({
                   whileHover={{ scale: 1.05 }}
                   whileTap={{ scale: 0.95 }}
                   onClick={() => onSelectRepo(repo)}
+                  role="button"
+                  tabIndex={0}
+                  aria-label={`Abrir ${repo.name} en 4K Studio`}
+                  onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') onSelectRepo(repo); }}
                   className={`flex flex-col items-center gap-2 p-3 rounded-2xl cursor-pointer transition-all ${
                     isSelected
                       ? 'bg-purple-900/30 border border-purple-400 shadow-[0_0_20px_rgba(192,132,252,0.3)]'
@@ -84,7 +88,7 @@ export const IconGalleryStrip: React.FC<IconGalleryStripProps> = ({
         <div>
           <div className="flex items-center gap-2 mb-4">
             <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-white/[0.03] border border-white/10 text-purple-300/70 font-mono text-[10px] tracking-wider uppercase">
-              <Sparkles className="w-3 h-3 text-purple-400" />
+              <Sparkles aria-hidden="true" className="w-3 h-3 text-purple-400" />
               2. REPOS PÚBLICAS GENERALES & ECOSISTEMAS
             </span>
             <div className="h-px flex-1 bg-gradient-to-r from-purple-500/20 to-transparent" />
@@ -99,6 +103,10 @@ export const IconGalleryStrip: React.FC<IconGalleryStripProps> = ({
                   whileHover={{ scale: 1.05 }}
                   whileTap={{ scale: 0.95 }}
                   onClick={() => onSelectRepo(repo)}
+                  role="button"
+                  tabIndex={0}
+                  aria-label={`Abrir ${repo.name} en 4K Studio`}
+                  onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') onSelectRepo(repo); }}
                   className={`flex flex-col items-center gap-1.5 p-2 rounded-2xl cursor-pointer transition-all ${
                     isSelected
                       ? 'bg-purple-900/30 border border-purple-400 shadow-[0_0_15px_rgba(192,132,252,0.3)]'
@@ -125,4 +133,4 @@ export const IconGalleryStrip: React.FC<IconGalleryStripProps> = ({
       </div>
     </section>
   );
-};
+});

@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useCallback, memo, type FormEvent, type KeyboardEvent as ReactKeyboardEvent, type ReactNode } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import {
   Terminal,
@@ -26,14 +26,14 @@ interface DevOpsCliBackendProps {
 
 interface CliHistoryEntry {
   command?: string;
-  output: React.ReactNode;
+  output: ReactNode;
   type?: 'input' | 'output' | 'system' | 'error' | 'success';
 }
 
-export const DevOpsCliBackend: React.FC<DevOpsCliBackendProps> = ({
+export const DevOpsCliBackend = memo(function DevOpsCliBackend({
   isOpen,
   onClose,
-}) => {
+}: DevOpsCliBackendProps) {
   const [inputVal, setInputVal] = useState('');
   const [commandHistory, setCommandHistory] = useState<string[]>([]);
   const [historyIndex, setHistoryIndex] = useState<number>(-1);
@@ -83,16 +83,35 @@ export const DevOpsCliBackend: React.FC<DevOpsCliBackendProps> = ({
   // Focus input when opened
   useEffect(() => {
     if (isOpen) {
-      setTimeout(() => inputRef.current?.focus(), 150);
+      const t = setTimeout(() => inputRef.current?.focus(), 150);
+      return () => clearTimeout(t);
     }
   }, [isOpen]);
+
+  // Cerrar con Escape (funciona incluso desde el input; no secuestra escritura)
+  useEffect(() => {
+    if (!isOpen) return;
+    const onKey = (e: KeyboardEvent) => {
+      const el = e.target as HTMLElement | null;
+      const tag = el?.tagName;
+      const isEditable = tag === 'INPUT' || tag === 'TEXTAREA' || !!el?.isContentEditable;
+      if (e.key === 'Escape') {
+        e.stopPropagation();
+        onClose();
+        return;
+      }
+      if (isEditable) return;
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [isOpen, onClose]);
 
   // Scroll to bottom on entries change
   useEffect(() => {
     terminalEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [entries]);
 
-  const handleCommandSubmit = (e: React.FormEvent) => {
+  const handleCommandSubmit = useCallback((e: FormEvent) => {
     e.preventDefault();
     const cmd = inputVal.trim();
     if (!cmd) return;
@@ -103,7 +122,7 @@ export const DevOpsCliBackend: React.FC<DevOpsCliBackendProps> = ({
     setInputVal('');
 
     const lowerCmd = cmd.toLowerCase();
-    let outputNode: React.ReactNode = null;
+    let outputNode: ReactNode = null;
 
     let normalizedCmd = lowerCmd;
     if (lowerCmd.includes('hack') || lowerCmd.includes('segur') || lowerCmd.includes('peligro') || lowerCmd.includes('virus')) {
@@ -498,9 +517,9 @@ export const DevOpsCliBackend: React.FC<DevOpsCliBackendProps> = ({
         type: 'output',
       },
     ]);
-  };
+  }, [inputVal, autoUpdateCount, lastSyncTime, onClose]);
 
-  const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+  const handleKeyDown = useCallback((e: ReactKeyboardEvent<HTMLInputElement>) => {
     if (e.key === 'ArrowUp') {
       e.preventDefault();
       if (commandHistory.length === 0) return;
@@ -519,12 +538,12 @@ export const DevOpsCliBackend: React.FC<DevOpsCliBackendProps> = ({
         setInputVal(commandHistory[nextIndex]);
       }
     }
-  };
+  }, [commandHistory, historyIndex]);
 
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-6 bg-black/80 backdrop-blur-xl">
+    <div role="dialog" aria-modal="true" aria-label="Consola backend DevOps" className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-6 bg-black/80 backdrop-blur-xl">
       <motion.div
         initial={{ scale: 0.95, opacity: 0, y: 20 }}
         animate={{ scale: 1, opacity: 1, y: 0 }}
@@ -539,11 +558,13 @@ export const DevOpsCliBackend: React.FC<DevOpsCliBackendProps> = ({
             {/* Window Traffic Lights */}
             <button
               onClick={onClose}
+              aria-label="Cerrar"
               className="w-3 h-3 rounded-full bg-rose-500 hover:bg-rose-400 transition-colors cursor-pointer"
               title="Cerrar CLI"
             />
             <button
               onClick={() => setIsMaximized(!isMaximized)}
+              aria-label="Maximizar o restaurar"
               className="w-3 h-3 rounded-full bg-amber-500 hover:bg-amber-400 transition-colors cursor-pointer"
               title="Maximizar/Restaurar"
             />
@@ -551,6 +572,7 @@ export const DevOpsCliBackend: React.FC<DevOpsCliBackendProps> = ({
               onClick={() => {
                 setEntries([]);
               }}
+              aria-label="Limpiar terminal"
               className="w-3 h-3 rounded-full bg-emerald-500 hover:bg-emerald-400 transition-colors cursor-pointer"
               title="Limpiar"
             />
@@ -570,6 +592,7 @@ export const DevOpsCliBackend: React.FC<DevOpsCliBackendProps> = ({
 
             <button
               onClick={() => setIsMaximized(!isMaximized)}
+              aria-label="Maximizar o restaurar"
               className="p-1.5 rounded hover:bg-purple-900/40 text-purple-300 hover:text-white"
             >
               {isMaximized ? <Minimize2 className="w-3.5 h-3.5" /> : <Maximize2 className="w-3.5 h-3.5" />}
@@ -577,6 +600,7 @@ export const DevOpsCliBackend: React.FC<DevOpsCliBackendProps> = ({
 
             <button
               onClick={onClose}
+              aria-label="Cerrar"
               className="p-1.5 rounded hover:bg-purple-900/40 text-purple-300 hover:text-white"
             >
               <X className="w-3.5 h-3.5" />
@@ -622,16 +646,18 @@ export const DevOpsCliBackend: React.FC<DevOpsCliBackendProps> = ({
           onSubmit={handleCommandSubmit}
           className="flex items-center gap-2 px-4 py-3 bg-black/80 border-t border-purple-900/30"
         >
-          <span className="text-xs text-purple-400 font-bold whitespace-nowrap">
+          <label htmlFor="devops-cli-input" className="text-xs text-purple-400 font-bold whitespace-nowrap">
             belentani@noiacore:~$
-          </span>
+          </label>
           <input
+            id="devops-cli-input"
             ref={inputRef}
             type="text"
             value={inputVal}
             onChange={(e) => setInputVal(e.target.value)}
             onKeyDown={handleKeyDown}
             placeholder="Escribe 'help', 'status', 'sync', 'repos', 'lux', 'science'..."
+            aria-label="Comando del terminal backend"
             className="flex-1 bg-transparent text-white text-xs font-mono outline-none border-none placeholder-purple-400/40"
             autoFocus
           />
@@ -645,4 +671,4 @@ export const DevOpsCliBackend: React.FC<DevOpsCliBackendProps> = ({
       </motion.div>
     </div>
   );
-};
+});

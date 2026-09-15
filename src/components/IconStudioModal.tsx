@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import { useState, useEffect, useMemo, useCallback, memo } from 'react';
 import { Repository, LightingMode } from '../types';
 import { RepoIcon } from './RepoIcon';
 import { X, Copy, Check, Sparkles, Sliders, ExternalLink, ShieldCheck, Download } from 'lucide-react';
@@ -11,19 +11,49 @@ interface IconStudioModalProps {
   onLightingChange: (mode: LightingMode) => void;
 }
 
-export const IconStudioModal: React.FC<IconStudioModalProps> = ({
+const LIGHTING_MODES: { id: LightingMode; label: string }[] = [
+  { id: 'ultra-noir-3', label: '3% Lux Ultranegro' },
+  { id: 'hbo-noir', label: 'HBO Max Noir' },
+  { id: 'liquid-bloom', label: 'Liquid Bloom' },
+];
+
+export const IconStudioModal = memo(function IconStudioModal({
   repo,
   onClose,
   lightingMode,
   onLightingChange,
-}) => {
+}: IconStudioModalProps) {
   const [copied, setCopied] = useState<string | null>(null);
   const [puffIntensity, setPuffIntensity] = useState<number>(85);
   const [haloGlow, setHaloGlow] = useState<number>(65);
 
-  if (!repo) return null;
+  // Cerrar con Escape (no secuestra escritura en inputs)
+  useEffect(() => {
+    if (!repo) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key !== 'Escape') return;
+      const el = e.target as HTMLElement | null;
+      const tag = el?.tagName;
+      const isEditable = tag === 'INPUT' || tag === 'TEXTAREA' || !!el?.isContentEditable;
+      if (isEditable && e.key !== 'Escape') return;
+      e.stopPropagation();
+      onClose();
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [repo, onClose]);
 
-  const handleCopySvg = () => {
+  const puffStyle = useMemo(() => {
+    if (!repo) return undefined;
+    return {
+      background: `radial-gradient(circle at 50% 50%, ${repo.iconConfig.puffGlow} 0%, transparent 65%)`,
+      filter: `blur(${puffIntensity / 2}px)`,
+      opacity: puffIntensity / 100,
+    };
+  }, [repo, puffIntensity]);
+
+  const handleCopySvg = useCallback(() => {
+    if (!repo) return;
     // Generate full standalone SVG string for export
     const svgCode = `<!-- Belentani Neural Core Icon: ${repo.name} -->
 <!-- Style: HBO Max Noir Purple · Thick Liquid Glass -->
@@ -51,9 +81,10 @@ export const IconStudioModal: React.FC<IconStudioModalProps> = ({
     navigator.clipboard.writeText(svgCode);
     setCopied('svg');
     setTimeout(() => setCopied(null), 2500);
-  };
+  }, [repo, haloGlow]);
 
-  const handleCopyCss = () => {
+  const handleCopyCss = useCallback(() => {
+    if (!repo) return;
     const cssCode = `/* HBO Max Noir Glassmorphism Card Style */
 .noir-glass-card {
   background: rgba(5, 1, 9, 0.88);
@@ -71,11 +102,20 @@ export const IconStudioModal: React.FC<IconStudioModalProps> = ({
     navigator.clipboard.writeText(cssCode);
     setCopied('css');
     setTimeout(() => setCopied(null), 2500);
-  };
+  }, [repo, haloGlow]);
+
+  const handleLightingChange = useCallback(
+    (mode: LightingMode) => {
+      onLightingChange(mode);
+    },
+    [onLightingChange]
+  );
+
+  if (!repo) return null;
 
   return (
     <AnimatePresence>
-      <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-6 overflow-y-auto">
+      <div role="dialog" aria-modal="true" aria-label={`Estudio de iconos: ${repo.name}`} className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-6 overflow-y-auto">
         {/* Darkened backdrop */}
         <motion.div
           initial={{ opacity: 0 }}
@@ -128,11 +168,7 @@ export const IconStudioModal: React.FC<IconStudioModalProps> = ({
               {/* Dynamic Atmospheric Puff */}
               <div
                 className="absolute inset-0 pointer-events-none transition-all duration-700"
-                style={{
-                  background: `radial-gradient(circle at 50% 50%, ${repo.iconConfig.puffGlow} 0%, transparent 65%)`,
-                  filter: `blur(${puffIntensity / 2}px)`,
-                  opacity: puffIntensity / 100,
-                }}
+                style={puffStyle}
               />
 
               {/* Ultra-HD Master Icon */}
@@ -183,28 +219,32 @@ export const IconStudioModal: React.FC<IconStudioModalProps> = ({
               {/* Controls: Halo and Puff adjustments */}
               <div className="space-y-3 pt-2 border-t border-purple-500/15">
                 <div className="flex items-center justify-between text-xs font-mono text-purple-200/80">
-                  <span>HALO DE LUZ FINA</span>
+                  <label htmlFor="icon-studio-halo">HALO DE LUZ FINA</label>
                   <span>{haloGlow}px</span>
                 </div>
                 <input
+                  id="icon-studio-halo"
                   type="range"
                   min="20"
                   max="120"
                   value={haloGlow}
                   onChange={(e) => setHaloGlow(Number(e.target.value))}
+                  aria-label="Halo de luz fina"
                   className="w-full accent-purple-400 bg-purple-950/50 h-1.5 rounded-lg cursor-pointer"
                 />
 
                 <div className="flex items-center justify-between text-xs font-mono text-purple-200/80 pt-1">
-                  <span>DIFUMINADO PUFF PUFF</span>
+                  <label htmlFor="icon-studio-puff">DIFUMINADO PUFF PUFF</label>
                   <span>{puffIntensity}%</span>
                 </div>
                 <input
+                  id="icon-studio-puff"
                   type="range"
                   min="10"
                   max="100"
                   value={puffIntensity}
                   onChange={(e) => setPuffIntensity(Number(e.target.value))}
+                  aria-label="Difuminado puff puff"
                   className="w-full accent-purple-400 bg-purple-950/50 h-1.5 rounded-lg cursor-pointer"
                 />
               </div>
@@ -215,14 +255,10 @@ export const IconStudioModal: React.FC<IconStudioModalProps> = ({
                   MODO DE ILUMINACIÓN DE FONDO
                 </span>
                 <div className="grid grid-cols-3 gap-2">
-                  {[
-                    { id: 'ultra-noir-3', label: '3% Lux Ultranegro' },
-                    { id: 'hbo-noir', label: 'HBO Max Noir' },
-                    { id: 'liquid-bloom', label: 'Liquid Bloom' },
-                  ].map((m) => (
+                  {LIGHTING_MODES.map((m) => (
                     <button
                       key={m.id}
-                      onClick={() => onLightingChange(m.id as LightingMode)}
+                      onClick={() => handleLightingChange(m.id)}
                       className={`font-mono text-[10px] py-1.5 px-2 rounded-xl border text-center transition-all ${
                         lightingMode === m.id
                           ? 'border-purple-400 bg-purple-900/40 text-white shadow-[0_0_15px_rgba(192,132,252,0.3)]'
@@ -288,4 +324,4 @@ export const IconStudioModal: React.FC<IconStudioModalProps> = ({
       </div>
     </AnimatePresence>
   );
-};
+});

@@ -1,1 +1,97 @@
 @import "tailwindcss";
+
+:root {
+  color-scheme: dark;
+}
+
+html,
+body {
+  background: #000;
+  overscroll-behavior-y: none;
+}
+
+body {
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* Focus visible accesible sobre fondo negro */
+:focus-visible {
+  outline: 2px solid rgba(168, 85, 247, 0.9);
+  outline-offset: 2px;
+  border-radius: 6px;
+}
+
+/* Respeto a reduced-motion: frena blurs y transiciones pesadas */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+
+/* Legibilidad sobre glass: film semitransparente + sombra 1px (NN/g) */
+.glass-text {
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.8);
+}
+
+/* GPU solo donde anima: evita will-change global */
+.anim-gpu {
+  will-change: transform;
+  transform: translateZ(0);
+}
+
+/* Sistema glass HBO noir (receta 2026: blur 12-20px, borde 1px, luz única arriba-izq) */
+.glass {
+  background: rgba(13, 13, 13, 0.6);
+  -webkit-backdrop-filter: blur(16px) saturate(1.2);
+  backdrop-filter: blur(16px) saturate(1.2);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  box-shadow:
+    0 8px 32px rgba(0, 0, 0, 0.45),
+    inset 0 1px 1px rgba(255, 255, 255, 0.12),
+    inset 0 0 0 1px rgba(255, 255, 255, 0.04);
+}
+
+.glass-strong {
+  background: rgba(8, 8, 12, 0.82);
+  -webkit-backdrop-filter: blur(20px) saturate(1.25);
+  backdrop-filter: blur(20px) saturate(1.25);
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  box-shadow:
+    0 24px 60px -12px rgba(0, 0, 0, 0.85),
+    inset 0 1px 1.5px rgba(255, 255, 255, 0.22),
+    inset 0 0 0 1px rgba(255, 255, 255, 0.05);
+}
+
+/* Fallback sin backdrop-filter: panel sólido legible */
+@supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
+  .glass,
+  .glass-strong {
+    background: rgba(8, 8, 12, 0.96);
+  }
+}
+
+/* Transparencia reducida (accesibilidad): quita blur/transparencia */
+@media (prefers-reduced-transparency: reduce) {
+  .glass,
+  .glass-strong {
+    background: #0a0a0e;
+    -webkit-backdrop-filter: none;
+    backdrop-filter: none;
+  }
+}
+::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+::-webkit-scrollbar-track {
+  background: #000;
+}
+::-webkit-scrollbar-thumb {
+  background: rgba(168, 85, 247, 0.35);
+  border-radius: 8px;
+  border: 2px solid #000;
+}

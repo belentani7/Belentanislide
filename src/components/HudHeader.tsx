@@ -1,4 +1,4 @@
-import React from 'react';
+import { memo } from 'react';
 import { LightingMode, RepoCategory } from '../types';
 import { Sparkles, Moon, Flame, Sun, Search, BookOpen, Globe, Shield, Terminal, Volume2 } from 'lucide-react';
 
@@ -13,7 +13,7 @@ interface HudHeaderProps {
   totalPublicCount: number;
 }
 
-export const HudHeader: React.FC<HudHeaderProps> = ({
+export const HudHeader = memo(function HudHeader({
   lightingMode,
   onLightingChange,
   activeFilter,
@@ -22,7 +22,7 @@ export const HudHeader: React.FC<HudHeaderProps> = ({
   onSearchChange,
   educationCount,
   totalPublicCount,
-}) => {
+}: HudHeaderProps) {
   return (
     <header className="relative z-30 pt-6 pb-4">
       {/* Top Floating Telemetry Capsule (HBO Max Style) */}
@@ -30,7 +30,7 @@ export const HudHeader: React.FC<HudHeaderProps> = ({
         <div className="flex flex-wrap items-center justify-between gap-4 rounded-full border border-purple-400/20 bg-black/60 px-5 py-2.5 backdrop-blur-2xl shadow-[0_15px_40px_rgba(0,0,0,0.8),0_0_30px_rgba(168,85,247,0.12)]">
           {/* Operator Brand */}
           <div className="flex items-center gap-3">
-            <span className="relative flex h-2.5 w-2.5">
+            <span className="relative flex h-2.5 w-2.5" aria-hidden="true">
               <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-purple-400 opacity-75" />
               <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-purple-500 shadow-[0_0_10px_#a855f7]" />
             </span>
@@ -55,7 +55,7 @@ export const HudHeader: React.FC<HudHeaderProps> = ({
               }`}
               title="Modo 3% Lux: Negro absoluto con luz ultra tenue en bordes"
             >
-              <Moon className="w-3 h-3" />
+              <Moon aria-hidden="true" className="w-3 h-3" />
               <span>3% Lux</span>
             </button>
 
@@ -68,7 +68,7 @@ export const HudHeader: React.FC<HudHeaderProps> = ({
               }`}
               title="Estilo HBO Max: Noir purple atmosférico cinematográfico"
             >
-              <Sparkles className="w-3 h-3" />
+              <Sparkles aria-hidden="true" className="w-3 h-3" />
               <span>HBO Noir</span>
             </button>
 
@@ -81,7 +81,7 @@ export const HudHeader: React.FC<HudHeaderProps> = ({
               }`}
               title="Luz líquida plasmática reactiva"
             >
-              <Flame className="w-3 h-3" />
+              <Flame aria-hidden="true" className="w-3 h-3" />
               <span>Liquid</span>
             </button>
           </div>
@@ -91,7 +91,7 @@ export const HudHeader: React.FC<HudHeaderProps> = ({
       {/* Hero Headline and Statement */}
       <div className="mx-auto max-w-5xl px-4 text-center mb-10">
         <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full border border-purple-500/20 bg-purple-950/30 text-purple-300 font-mono text-[10px] tracking-[0.25em] uppercase mb-4 shadow-[0_0_20px_rgba(168,85,247,0.15)]">
-          <Sparkles className="w-3 h-3 text-purple-400" />
+          <Sparkles aria-hidden="true" className="w-3 h-3 text-purple-400" />
           ICONOGRAFÍA REACTIVA · TODAS LAS REPOS PÚBLICAS
         </div>
 
@@ -106,17 +106,19 @@ export const HudHeader: React.FC<HudHeaderProps> = ({
         {/* Search & Filter Bar */}
         <div className="flex flex-col sm:flex-row items-center justify-center gap-3 max-w-xl mx-auto mb-6">
           <div className="relative w-full">
-            <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-purple-400/60" />
+            <Search aria-hidden="true" className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-purple-400/60" />
             <input
               type="text"
               value={searchQuery}
               onChange={(e) => onSearchChange(e.target.value)}
               placeholder="Buscar repositorio, tecnología o concepto..."
+              aria-label="Buscar repositorio, tecnología o concepto"
               className="w-full rounded-2xl border border-purple-500/25 bg-black/60 pl-11 pr-4 py-2.5 text-sm text-white placeholder-purple-300/40 backdrop-blur-xl focus:border-purple-400 focus:outline-none focus:ring-1 focus:ring-purple-400/50 shadow-[0_10px_30px_rgba(0,0,0,0.8)]"
             />
             {searchQuery && (
               <button
                 onClick={() => onSearchChange('')}
+                aria-label="Limpiar búsqueda"
                 className="absolute right-3 top-1/2 -translate-y-1/2 text-xs font-mono text-purple-400/70 hover:text-white"
               >
                 Limpiar
@@ -135,7 +137,7 @@ export const HudHeader: React.FC<HudHeaderProps> = ({
                 : 'bg-purple-950/40 text-purple-300/80 border border-purple-400/30 hover:border-purple-300'
             }`}
           >
-            <BookOpen className="w-3.5 h-3.5 text-purple-300" />
+            <BookOpen aria-hidden="true" className="w-3.5 h-3.5 text-purple-300" />
             <span>★ EDUCACIÓN PRIMERO ({educationCount})</span>
           </button>
 
@@ -147,7 +149,7 @@ export const HudHeader: React.FC<HudHeaderProps> = ({
                 : 'bg-black/40 text-purple-300/60 border border-purple-500/20 hover:text-white'
             }`}
           >
-            <Globe className="w-3.5 h-3.5" />
+            <Globe aria-hidden="true" className="w-3.5 h-3.5" />
             <span>Todas las Públicas ({totalPublicCount})</span>
           </button>
 
@@ -159,7 +161,7 @@ export const HudHeader: React.FC<HudHeaderProps> = ({
                 : 'bg-black/40 text-purple-300/60 border border-purple-500/20 hover:text-white'
             }`}
           >
-            <Terminal className="w-3.5 h-3.5" />
+            <Terminal aria-hidden="true" className="w-3.5 h-3.5" />
             <span>IA & Agentes</span>
           </button>
 
@@ -171,7 +173,7 @@ export const HudHeader: React.FC<HudHeaderProps> = ({
                 : 'bg-black/40 text-purple-300/60 border border-purple-500/20 hover:text-white'
             }`}
           >
-            <Shield className="w-3.5 h-3.5" />
+            <Shield aria-hidden="true" className="w-3.5 h-3.5" />
             <span>Sistemas & Kernel</span>
           </button>
 
@@ -183,11 +185,11 @@ export const HudHeader: React.FC<HudHeaderProps> = ({
                 : 'bg-black/40 text-purple-300/60 border border-purple-500/20 hover:text-white'
             }`}
           >
-            <Volume2 className="w-3.5 h-3.5" />
+            <Volume2 aria-hidden="true" className="w-3.5 h-3.5" />
             <span>Audio & Estudio</span>
           </button>
         </div>
       </div>
     </header>
   );
-};
+});

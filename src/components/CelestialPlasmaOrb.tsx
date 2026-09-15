@@ -1,4 +1,4 @@
-import React from 'react';
+import { memo } from 'react';
 
 interface CelestialPlasmaOrbProps {
   repoId: string;
@@ -7,12 +7,12 @@ interface CelestialPlasmaOrbProps {
   size?: 'sm' | 'md' | 'lg' | 'xl';
 }
 
-export const CelestialPlasmaOrb: React.FC<CelestialPlasmaOrbProps> = ({
+export const CelestialPlasmaOrb = memo(function CelestialPlasmaOrb({
   repoId,
   colorHex,
   className = '',
   size = 'lg',
-}) => {
+}: CelestialPlasmaOrbProps) {
   // Dimensions based on size
   const sizeMap = {
     sm: { w: 120, h: 120, radius: 46 },
@@ -63,11 +63,13 @@ export const CelestialPlasmaOrb: React.FC<CelestialPlasmaOrbProps> = ({
 
   return (
     <div
+      aria-hidden="true"
       className={`relative flex items-center justify-center pointer-events-none select-none ${className}`}
       style={{ width: w, height: h }}
     >
       {/* ─── Ambient Sub-Surface Caustic Glow Behind the Sphere ─── */}
       <div
+        aria-hidden="true"
         className="absolute rounded-full filter blur-3xl opacity-60 transition-all duration-700 pointer-events-none"
         style={{
           width: radius * 2.2,
@@ -78,6 +80,7 @@ export const CelestialPlasmaOrb: React.FC<CelestialPlasmaOrbProps> = ({
 
       {/* ─── The 3D High-Fidelity Celestial Plasma Sphere (SVG Vectorized Art) ─── */}
       <svg
+        aria-hidden="true"
         viewBox={`0 0 ${w} ${h}`}
         width="100%"
         height="100%"
@@ -336,4 +339,4 @@ export const CelestialPlasmaOrb: React.FC<CelestialPlasmaOrbProps> = ({
       </svg>
     </div>
   );
-};
+});

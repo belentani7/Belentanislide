@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef, useMemo } from 'react';
+import { useState, useEffect, useRef, useMemo, useCallback, memo, type MouseEvent as ReactMouseEvent, type WheelEvent as ReactWheelEvent } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import {
   ChevronLeft,
@@ -39,7 +39,7 @@ interface SmartWatchCascadeTVProps {
   onOpenLiquidLightArticle: (repo: Repository) => void;
 }
 
-export const SmartWatchCascadeTV: React.FC<SmartWatchCascadeTVProps> = ({
+export const SmartWatchCascadeTV = memo(function SmartWatchCascadeTV({
   repositories,
   lightingMode,
   onLightingChange,
@@ -49,7 +49,7 @@ export const SmartWatchCascadeTV: React.FC<SmartWatchCascadeTVProps> = ({
   onOpenRulesModal,
   onOpenCliBackend,
   onOpenLiquidLightArticle,
-}) => {
+}: SmartWatchCascadeTVProps) {
   // Sort with education repositories strictly first
   const sortedRepos = useMemo(() => {
     return [...repositories].sort((a, b) => {
@@ -78,6 +78,8 @@ export const SmartWatchCascadeTV: React.FC<SmartWatchCascadeTVProps> = ({
 
   const containerRef = useRef<HTMLDivElement>(null);
   const crownStartYRef = useRef<number>(0);
+  const lastWheelRef = useRef(0);
+  const raf = useRef<number | null>(null);
 
   const currentRepo = sortedRepos[currentIndex] || sortedRepos[0];
 
@@ -91,72 +93,102 @@ export const SmartWatchCascadeTV: React.FC<SmartWatchCascadeTVProps> = ({
   }, []);
 
   // Navigation handlers with toroidal wrap
-  const goToNext = () => {
+  const goToNext = useCallback(() => {
     setCurrentIndex((prev) => (prev + 1) % sortedRepos.length);
     setCrownRotation((prev) => prev + 25.7);
-  };
+  }, [sortedRepos.length]);
 
-  const goToPrev = () => {
+  const goToPrev = useCallback(() => {
     setCurrentIndex((prev) => (prev - 1 + sortedRepos.length) % sortedRepos.length);
     setCrownRotation((prev) => prev - 25.7);
-  };
+  }, [sortedRepos.length]);
 
-  const goToIndex = (index: number) => {
+  const goToIndex = useCallback((index: number) => {
     setCurrentIndex(index);
     setCrownRotation(index * 25.7);
-  };
+  }, []);
 
   // Keyboard navigation & CLI backtick listener
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
+      const t = e.target as HTMLElement | null;
+      if (
+        t instanceof HTMLInputElement ||
+        t instanceof HTMLTextAreaElement ||
+        (t && t.isContentEditable)
+      )
+        return;
       if (e.key === '`' || e.key === '~') {
         e.preventDefault();
         onOpenCliBackend();
         return;
       }
       if (e.key === 'ArrowRight' || e.key === 'ArrowDown') {
+        e.preventDefault();
         goToNext();
       } else if (e.key === 'ArrowLeft' || e.key === 'ArrowUp') {
+        e.preventDefault();
         goToPrev();
       }
     };
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [sortedRepos.length]);
+  }, [goToNext, goToPrev, onOpenCliBackend]);
 
-  // Wheel scrolling (Smart Watch Cascade feel)
-  const handleWheel = (e: React.WheelEvent) => {
-    if (Math.abs(e.deltaY) > 28) {
-      if (e.deltaY > 0) {
-        goToNext();
-      } else {
-        goToPrev();
+  // Wheel scrolling (Smart Watch Cascade feel) with >300ms throttle
+  const handleWheel = useCallback(
+    (e: ReactWheelEvent) => {
+      const now = Date.now();
+      if (now - lastWheelRef.current < 300) return;
+      if (Math.abs(e.deltaY) > 28) {
+        lastWheelRef.current = now;
+        if (e.deltaY > 0) {
+          goToNext();
+        } else {
+          goToPrev();
+        }
       }
-    }
-  };
+    },
+    [goToNext, goToPrev]
+  );
 
-  // Pointer micro-distortion handler
-  const handlePanelMouseMove = (e: React.MouseEvent<HTMLDivElement>) => {
+  // Pointer micro-distortion handler with rAF throttle
+  const handlePanelMouseMove = useCallback((e: ReactMouseEvent<HTMLDivElement>) => {
+    if (raf.current) return;
     const rect = e.currentTarget.getBoundingClientRect();
     const x = (e.clientX - rect.left) / rect.width - 0.5;
     const y = (e.clientY - rect.top) / rect.height - 0.5;
-    setTilt({
-      x: x * 4.5,
-      y: -y * 4.5,
-      sheenX: x * 24,
-      sheenY: y * 24,
+    raf.current = requestAnimationFrame(() => {
+      setTilt({
+        x: x * 4.5,
+        y: -y * 4.5,
+        sheenX: x * 24,
+        sheenY: y * 24,
+      });
+      raf.current = null;
     });
-  };
+  }, []);
 
-  const handlePanelMouseLeave = () => {
+  const handlePanelMouseLeave = useCallback(() => {
+    if (raf.current) {
+      cancelAnimationFrame(raf.current);
+      raf.current = null;
+    }
     setTilt({ x: 0, y: 0, sheenX: 0, sheenY: 0 });
-  };
+  }, []);
+
+  // Cancel pending tilt rAF on unmount
+  useEffect(() => {
+    return () => {
+      if (raf.current) cancelAnimationFrame(raf.current);
+    };
+  }, []);
 
   // Apple Watch Digital Crown drag handling
-  const handleCrownMouseDown = (e: React.MouseEvent) => {
+  const handleCrownMouseDown = useCallback((e: ReactMouseEvent) => {
     setIsDraggingCrown(true);
     crownStartYRef.current = e.clientY;
-  };
+  }, []);
 
   useEffect(() => {
     const handleMouseMove = (e: MouseEvent) => {
@@ -184,7 +216,12 @@ export const SmartWatchCascadeTV: React.FC<SmartWatchCascadeTVProps> = ({
       window.removeEventListener('mousemove', handleMouseMove);
       window.removeEventListener('mouseup', handleMouseUp);
     };
-  }, [isDraggingCrown]);
+  }, [isDraggingCrown, goToNext, goToPrev]);
+
+  const handleToggleDrawer = useCallback(() => setIsDrawerOpen((prev) => !prev), []);
+  const handleCloseDrawer = useCallback(() => setIsDrawerOpen(false), []);
+
+  if (!repositories?.length) return null;
 
   return (
     <div
@@ -402,6 +439,7 @@ export const SmartWatchCascadeTV: React.FC<SmartWatchCascadeTVProps> = ({
             <div className="absolute -right-8 top-1/2 -translate-y-1/2 flex flex-col items-center gap-1.5 z-40">
               <button
                 onClick={goToPrev}
+                aria-label="Girar corona al proyecto anterior"
                 className="p-1.5 rounded-full bg-neutral-800 hover:bg-purple-950 border border-purple-500/40 text-purple-300 hover:text-white transition-all shadow-lg"
                 title="Girar Corona Arriba (Anterior)"
               >
@@ -420,6 +458,7 @@ export const SmartWatchCascadeTV: React.FC<SmartWatchCascadeTVProps> = ({
 
               <button
                 onClick={goToNext}
+                aria-label="Girar corona al proyecto siguiente"
                 className="p-1.5 rounded-full bg-neutral-800 hover:bg-purple-950 border border-purple-500/40 text-purple-300 hover:text-white transition-all shadow-lg"
                 title="Girar Corona Abajo (Siguiente)"
               >
@@ -850,6 +889,7 @@ export const SmartWatchCascadeTV: React.FC<SmartWatchCascadeTVProps> = ({
         <div className="absolute right-3 sm:right-6 top-1/2 -translate-y-1/2 z-30 flex flex-col items-center gap-2">
           <button
             onClick={goToPrev}
+            aria-label="Proyecto anterior"
             className="p-2 rounded-full bg-black/60 hover:bg-purple-950/80 border border-purple-500/30 text-purple-300 hover:text-white transition-all"
             title="Proyecto Anterior"
           >
@@ -886,6 +926,7 @@ export const SmartWatchCascadeTV: React.FC<SmartWatchCascadeTVProps> = ({
 
           <button
             onClick={goToNext}
+            aria-label="Proyecto siguiente"
             className="p-2 rounded-full bg-black/60 hover:bg-purple-950/80 border border-purple-500/30 text-purple-300 hover:text-white transition-all"
             title="Proyecto Siguiente"
           >
@@ -903,6 +944,7 @@ export const SmartWatchCascadeTV: React.FC<SmartWatchCascadeTVProps> = ({
         <div className="max-w-6xl mx-auto flex items-center justify-between gap-4">
           <button
             onClick={goToPrev}
+            aria-label="Proyecto anterior"
             className="p-2 rounded-xl bg-purple-950/40 hover:bg-purple-900/60 border border-purple-500/30 text-purple-300"
           >
             <ChevronLeft className="w-4 h-4" />
@@ -933,6 +975,7 @@ export const SmartWatchCascadeTV: React.FC<SmartWatchCascadeTVProps> = ({
 
           <button
             onClick={goToNext}
+            aria-label="Proyecto siguiente"
             className="p-2 rounded-xl bg-purple-950/40 hover:bg-purple-900/60 border border-purple-500/30 text-purple-300"
           >
             <ChevronRight className="w-4 h-4" />
@@ -944,11 +987,11 @@ export const SmartWatchCascadeTV: React.FC<SmartWatchCascadeTVProps> = ({
       <SwipeUpGlassDrawer
         repo={currentRepo}
         isOpen={isDrawerOpen}
-        onToggle={() => setIsDrawerOpen((prev) => !prev)}
-        onClose={() => setIsDrawerOpen(false)}
+        onToggle={handleToggleDrawer}
+        onClose={handleCloseDrawer}
         onInspectIcon={onInspectIcon}
         onOpenArticle={onOpenLiquidLightArticle}
       />
     </div>
   );
-};
+});

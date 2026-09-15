@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect, useCallback, memo } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import {
   Sparkles,
@@ -35,10 +35,12 @@ interface HarmoniaEscaparatismoModalProps {
   onClose: () => void;
 }
 
-export const HarmoniaEscaparatismoModal: React.FC<HarmoniaEscaparatismoModalProps> = ({
+const RULE_COUNT_OPTIONS = [1000, 5000, 10000, 20000];
+
+export const HarmoniaEscaparatismoModal = memo(function HarmoniaEscaparatismoModal({
   isOpen,
   onClose,
-}) => {
+}: HarmoniaEscaparatismoModalProps) {
   const [activeTab, setActiveTab] = useState<'rules' | 'harmony' | 'priorities'>('rules');
   const [ruleCountTarget, setRuleCountTarget] = useState<number>(20000);
   const [selectedCategory, setSelectedCategory] = useState<string>('ALL');
@@ -68,14 +70,36 @@ export const HarmoniaEscaparatismoModal: React.FC<HarmoniaEscaparatismoModalProp
   }, [allRules, selectedCategory, searchQuery]);
 
   // Current active rule or first in filtered list
-  const inspectedRule = selectedRule || filteredRules[0] || allRules[0];
+  const inspectedRule = useMemo(
+    () => selectedRule || filteredRules[0] || allRules[0],
+    [selectedRule, filteredRules, allRules]
+  );
+
+  // Solo las primeras 80 para no re-mapear la lista larga en cada render
+  const visibleRules = useMemo(() => filteredRules.slice(0, 80), [filteredRules]);
 
   // Live Harmony Report
   const harmonyReport = useMemo(() => {
     return evaluateSceneHarmony(REPOSITORIES[0], 'ultra-noir-3', 'tv');
   }, []);
 
-  const handleCopyRule = (rule: DesignEngineRule) => {
+  // Cerrar con Escape (no secuestra escritura en inputs)
+  useEffect(() => {
+    if (!isOpen) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key !== 'Escape') return;
+      const el = e.target as HTMLElement | null;
+      const tag = el?.tagName;
+      const isEditable = tag === 'INPUT' || tag === 'TEXTAREA' || !!el?.isContentEditable;
+      if (isEditable && e.key !== 'Escape') return;
+      e.stopPropagation();
+      onClose();
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [isOpen, onClose]);
+
+  const handleCopyRule = useCallback((rule: DesignEngineRule) => {
     const text = `BELENTANI DESIGN CONSTRAINT ENGINE:
 RULE ID: ${rule.id}
 CATEGORY: ${rule.category}
@@ -89,19 +113,23 @@ STATUS: ${rule.status}`;
     navigator.clipboard.writeText(text);
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
-  };
+  }, []);
 
-  const handleCopyAllRules = () => {
+  const handleCopyAllRules = useCallback(() => {
     const text = JSON.stringify(filteredRules.slice(0, 500), null, 2);
     navigator.clipboard.writeText(text);
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
-  };
+  }, [filteredRules]);
+
+  const handleSelectRule = useCallback((rule: DesignEngineRule) => {
+    setSelectedRule(rule);
+  }, []);
 
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-6 bg-black/85 backdrop-blur-3xl overflow-hidden animate-in fade-in duration-200">
+    <div role="dialog" aria-modal="true" aria-label="Motor de reglas de diseño y armonía" className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-6 bg-black/85 backdrop-blur-3xl overflow-hidden animate-in fade-in duration-200">
       <div className="relative w-full max-w-6xl h-[92vh] flex flex-col bg-neutral-950/95 border border-purple-500/30 rounded-3xl sm:rounded-[36px] overflow-hidden shadow-[0_0_80px_rgba(168,85,247,0.25)] select-none">
         {/* Real Glass Specular Sheen at 45 deg */}
         <div
@@ -171,6 +199,7 @@ STATUS: ${rule.status}`;
             {/* Close Button */}
             <button
               onClick={onClose}
+              aria-label="Cerrar"
               className="p-2 rounded-2xl bg-neutral-900 hover:bg-neutral-800 border border-purple-500/30 text-purple-300 hover:text-white transition-all"
             >
               <X className="w-5 h-5" />
@@ -189,7 +218,7 @@ STATUS: ${rule.status}`;
                   {/* Dynamic Rule Target Selector */}
                   <div className="flex items-center gap-1.5 text-xs font-mono">
                     <span className="text-neutral-400">Escala:</span>
-                    {[1000, 5000, 10000, 20000].map((cnt) => (
+                    {RULE_COUNT_OPTIONS.map((cnt) => (
                       <button
                         key={cnt}
                         onClick={() => setRuleCountTarget(cnt)}
@@ -213,10 +242,12 @@ STATUS: ${rule.status}`;
                 <div className="relative">
                   <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-purple-400/60" />
                   <input
+                    id="harmonia-rules-search"
                     type="text"
                     value={searchQuery}
                     onChange={(e) => setSearchQuery(e.target.value)}
                     placeholder="Buscar por ID (ej. LIGH-0342) o condición..."
+                    aria-label="Buscar reglas por ID o condición"
                     className="w-full pl-9 pr-4 py-2 rounded-xl bg-black/70 border border-purple-500/25 text-white placeholder-neutral-500 text-xs font-mono focus:outline-none focus:border-purple-400"
                   />
                   {searchQuery && (
@@ -260,12 +291,12 @@ STATUS: ${rule.status}`;
 
               {/* Scrollable Rules List */}
               <div className="flex-1 overflow-y-auto p-3 sm:p-4 space-y-2 select-none">
-                {filteredRules.slice(0, 80).map((rule) => {
+                {visibleRules.map((rule) => {
                   const isSelected = inspectedRule?.id === rule.id;
                   return (
                     <div
                       key={rule.id}
-                      onClick={() => setSelectedRule(rule)}
+                      onClick={() => handleSelectRule(rule)}
                       className={`p-3 rounded-2xl border transition-all cursor-pointer ${
                         isSelected
                           ? 'bg-purple-950/70 border-purple-400 text-white shadow-[0_0_15px_rgba(168,85,247,0.3)]'
@@ -545,4 +576,4 @@ STATUS: ${rule.status}`;
       </div>
     </div>
   );
-};
+});

@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react';
+import { useState, useEffect, useRef, useMemo, useCallback, memo, type TouchEvent as ReactTouchEvent, type WheelEvent as ReactWheelEvent } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import {
   Play,
@@ -40,7 +40,7 @@ interface NetflixGrandScreenProps {
   onOpenRulesModal?: () => void;
 }
 
-export const NetflixGrandScreen: React.FC<NetflixGrandScreenProps> = ({
+export const NetflixGrandScreen = memo(function NetflixGrandScreen({
   repositories,
   lightingMode,
   onLightingChange,
@@ -48,7 +48,7 @@ export const NetflixGrandScreen: React.FC<NetflixGrandScreenProps> = ({
   onOpenStudioWorkbench,
   onSwitchVersion,
   onOpenRulesModal,
-}) => {
+}: NetflixGrandScreenProps) {
   // Sort with education repositories strictly first
   const sortedRepos = useMemo(() => {
     const list = [...repositories];
@@ -151,7 +151,13 @@ export const NetflixGrandScreen: React.FC<NetflixGrandScreenProps> = ({
   // Keyboard navigation
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) return;
+      const t = e.target as HTMLElement | null;
+      if (
+        t instanceof HTMLInputElement ||
+        t instanceof HTMLTextAreaElement ||
+        (t && t.isContentEditable)
+      )
+        return;
 
       if (e.key === 'ArrowRight' || e.key === 'ArrowDown') {
         e.preventDefault();
@@ -165,6 +171,9 @@ export const NetflixGrandScreen: React.FC<NetflixGrandScreenProps> = ({
       } else if (e.key === 'k' && (e.metaKey || e.ctrlKey)) {
         e.preventDefault();
         setShowSearchModal((prev) => !prev);
+      } else if (e.key === 'Escape') {
+        e.preventDefault();
+        setShowSearchModal(false);
       }
     };
 
@@ -172,42 +181,46 @@ export const NetflixGrandScreen: React.FC<NetflixGrandScreenProps> = ({
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [goToNext, goToPrev]);
 
-  // Wheel debounced navigation
-  const wheelLock = useRef(false);
-  const handleWheel = (e: React.WheelEvent) => {
-    if (wheelLock.current) return;
-    if (Math.abs(e.deltaY) > 40 || Math.abs(e.deltaX) > 40) {
-      wheelLock.current = true;
-      if (e.deltaY > 0 || e.deltaX > 0) {
-        goToNext();
-      } else {
-        goToPrev();
+  // Wheel throttled navigation (>300ms timestamp)
+  const lastWheelRef = useRef(0);
+  const handleWheel = useCallback(
+    (e: ReactWheelEvent) => {
+      const now = Date.now();
+      if (now - lastWheelRef.current < 300) return;
+      if (Math.abs(e.deltaY) > 40 || Math.abs(e.deltaX) > 40) {
+        lastWheelRef.current = now;
+        if (e.deltaY > 0 || e.deltaX > 0) {
+          goToNext();
+        } else {
+          goToPrev();
+        }
       }
-      setTimeout(() => {
-        wheelLock.current = false;
-      }, 700);
-    }
-  };
+    },
+    [goToNext, goToPrev]
+  );
 
   // Touch swipe support
   const touchStartX = useRef<number | null>(null);
-  const handleTouchStart = (e: React.TouchEvent) => {
+  const handleTouchStart = useCallback((e: ReactTouchEvent) => {
     touchStartX.current = e.touches[0].clientX;
-  };
-  const handleTouchEnd = (e: React.TouchEvent) => {
-    if (touchStartX.current === null) return;
-    const diff = touchStartX.current - e.changedTouches[0].clientX;
-    if (Math.abs(diff) > 50) {
-      if (diff > 0) {
-        goToNext();
-      } else {
-        goToPrev();
+  }, []);
+  const handleTouchEnd = useCallback(
+    (e: ReactTouchEvent) => {
+      if (touchStartX.current === null) return;
+      const diff = touchStartX.current - e.changedTouches[0].clientX;
+      if (Math.abs(diff) > 50) {
+        if (diff > 0) {
+          goToNext();
+        } else {
+          goToPrev();
+        }
       }
-    }
-    touchStartX.current = null;
-  };
+      touchStartX.current = null;
+    },
+    [goToNext, goToPrev]
+  );
 
-  const handleCopySvg = () => {
+  const handleCopySvg = useCallback(() => {
     if (!currentRepo) return;
     const svgCode = `<!-- Icono Procedural Belentani Neural Icons 4K: ${currentRepo.name} -->
 <svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
@@ -224,7 +237,7 @@ export const NetflixGrandScreen: React.FC<NetflixGrandScreenProps> = ({
     navigator.clipboard.writeText(svgCode);
     setCopiedCode(true);
     setTimeout(() => setCopiedCode(false), 2000);
-  };
+  }, [currentRepo]);
 
   const thumbnailsScrollRef = useRef<HTMLDivElement | null>(null);
 
@@ -237,6 +250,8 @@ export const NetflixGrandScreen: React.FC<NetflixGrandScreenProps> = ({
       }
     }
   }, [currentIndex]);
+
+  if (!repositories?.length) return null;
 
   const slideVariants = {
     enter: (dir: number) => ({
@@ -432,6 +447,7 @@ export const NetflixGrandScreen: React.FC<NetflixGrandScreenProps> = ({
           {/* Quick Search Button */}
           <button
             onClick={() => setShowSearchModal(true)}
+            aria-label="Buscar en el catálogo"
             className="p-1.5 rounded-xl border border-purple-500/20 bg-black/50 text-purple-300 hover:text-white hover:border-purple-400/40 transition-colors"
             title="Buscar en el catálogo (Ctrl+K)"
           >
@@ -596,6 +612,7 @@ export const NetflixGrandScreen: React.FC<NetflixGrandScreenProps> = ({
                     href={currentRepo.githubUrl}
                     target="_blank"
                     rel="noopener noreferrer"
+                    aria-label="Ver repositorio en GitHub"
                     className="p-2.5 sm:p-3 rounded-xl bg-black/60 hover:bg-purple-950/50 border border-purple-500/20 text-purple-300 hover:text-white transition-all backdrop-blur-xl"
                     title="Ver repositorio en GitHub"
                   >
@@ -761,7 +778,12 @@ export const NetflixGrandScreen: React.FC<NetflixGrandScreenProps> = ({
 
       {/* ─── 4. Quick Jump / Search Modal (Netflix Style) ─── */}
       {showSearchModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-3xl animate-in fade-in duration-200">
+        <div
+          role="dialog"
+          aria-modal="true"
+          aria-label="Buscar en el catálogo"
+          className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-3xl animate-in fade-in duration-200"
+        >
           <div className="relative w-full max-w-2xl rounded-3xl border border-purple-500/30 bg-black/90 p-6 shadow-[0_0_50px_rgba(168,85,247,0.2)]">
             <div className="flex items-center justify-between pb-4 border-b border-purple-500/20">
               <div className="flex items-center gap-2.5">
@@ -772,6 +794,7 @@ export const NetflixGrandScreen: React.FC<NetflixGrandScreenProps> = ({
               </div>
               <button
                 onClick={() => setShowSearchModal(false)}
+                aria-label="Cerrar búsqueda"
                 className="p-1 rounded-xl text-purple-400 hover:text-white hover:bg-purple-950/50"
               >
                 <X className="w-5 h-5" />
@@ -830,4 +853,4 @@ export const NetflixGrandScreen: React.FC<NetflixGrandScreenProps> = ({
       )}
     </div>
   );
-};
+});

@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import { useState, useEffect, useMemo, useCallback, memo } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import {
   X,
@@ -22,19 +22,19 @@ interface Rules5000ModalProps {
   onSelectVersion: (ver: AppViewVersion) => void;
 }
 
-export const Rules5000Modal: React.FC<Rules5000ModalProps> = ({
+export const Rules5000Modal = memo(function Rules5000Modal({
   isOpen,
   onClose,
   currentVersion,
   onSelectVersion,
-}) => {
+}: Rules5000ModalProps) {
   const [activeTab, setActiveTab] = useState<'zero-text' | 'netflix-cinema' | 'all'>(
     currentVersion
   );
   const [searchQuery, setSearchQuery] = useState('');
   const [copied, setCopied] = useState(false);
 
-  const rulesZeroText = [
+  const rulesZeroText = useMemo(() => [
     {
       id: 'ZT-001 - ZT-350',
       category: 'Tipografía Escultórica de 1 Palabra',
@@ -91,9 +91,9 @@ export const Rules5000Modal: React.FC<Rules5000ModalProps> = ({
       rulesCount: 400,
       status: 'Activa · 100% Cumplida',
     },
-  ];
+  ], []);
 
-  const rulesNetflix = [
+  const rulesNetflix = useMemo(() => [
     {
       id: 'NF-001 - NF-350',
       category: 'Gran Pantalla Panorámica Netflix',
@@ -150,9 +150,49 @@ export const Rules5000Modal: React.FC<Rules5000ModalProps> = ({
       rulesCount: 400,
       status: 'Activa · 100% Cumplida',
     },
-  ];
+  ], []);
 
-  const handleCopyRules = () => {
+  const filteredZeroText = useMemo(() => {
+    const q = searchQuery.toLowerCase().trim();
+    if (!q) return rulesZeroText;
+    return rulesZeroText.filter(
+      (r) =>
+        r.id.toLowerCase().includes(q) ||
+        r.title.toLowerCase().includes(q) ||
+        r.description.toLowerCase().includes(q) ||
+        r.category.toLowerCase().includes(q)
+    );
+  }, [rulesZeroText, searchQuery]);
+
+  const filteredNetflix = useMemo(() => {
+    const q = searchQuery.toLowerCase().trim();
+    if (!q) return rulesNetflix;
+    return rulesNetflix.filter(
+      (r) =>
+        r.id.toLowerCase().includes(q) ||
+        r.title.toLowerCase().includes(q) ||
+        r.description.toLowerCase().includes(q) ||
+        r.category.toLowerCase().includes(q)
+    );
+  }, [rulesNetflix, searchQuery]);
+
+  // Cerrar con Escape (no secuestra escritura en inputs)
+  useEffect(() => {
+    if (!isOpen) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key !== 'Escape') return;
+      const el = e.target as HTMLElement | null;
+      const tag = el?.tagName;
+      const isEditable = tag === 'INPUT' || tag === 'TEXTAREA' || !!el?.isContentEditable;
+      if (isEditable && e.key !== 'Escape') return;
+      e.stopPropagation();
+      onClose();
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [isOpen, onClose]);
+
+  const handleCopyRules = useCallback(() => {
     const text = `BELENTANI PLATAFORMA - SISTEMA DE 5.000 REGLAS DE MEJORAS
 ================================================================
 TOTAL REGLAS: 5.000 REGLAS
@@ -165,12 +205,27 @@ COMPILACIÓN: React 19 + TypeScript + Motion + Tailwind CSS`;
     navigator.clipboard.writeText(text);
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
-  };
+  }, []);
+
+  const handleActivateZeroText = useCallback(() => {
+    onSelectVersion('zero-text');
+    onClose();
+  }, [onSelectVersion, onClose]);
+
+  const handleActivateNetflix = useCallback(() => {
+    onSelectVersion('netflix-cinema');
+    onClose();
+  }, [onSelectVersion, onClose]);
+
+  const handleToggleVersion = useCallback(() => {
+    onSelectVersion(currentVersion === 'zero-text' ? 'netflix-cinema' : 'zero-text');
+    onClose();
+  }, [currentVersion, onSelectVersion, onClose]);
 
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-6 bg-black/85 backdrop-blur-2xl">
+    <div role="dialog" aria-modal="true" aria-label="Cinco mil reglas de mejoras" className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-6 bg-black/85 backdrop-blur-2xl">
       <motion.div
         initial={{ scale: 0.94, opacity: 0 }}
         animate={{ scale: 1, opacity: 1 }}
@@ -200,6 +255,7 @@ COMPILACIÓN: React 19 + TypeScript + Motion + Tailwind CSS`;
 
           <button
             onClick={onClose}
+            aria-label="Cerrar"
             className="p-2 rounded-2xl bg-purple-950/40 hover:bg-purple-900/60 border border-purple-500/20 text-purple-300 hover:text-white transition-colors"
           >
             <X className="w-5 h-5" />
@@ -295,10 +351,7 @@ COMPILACIÓN: React 19 + TypeScript + Motion + Tailwind CSS`;
                   </h3>
                 </div>
                 <button
-                  onClick={() => {
-                    onSelectVersion('zero-text');
-                    onClose();
-                  }}
+                  onClick={handleActivateZeroText}
                   className="text-xs font-mono text-purple-400 hover:text-purple-200 underline"
                 >
                   Activar esta versión →
@@ -306,7 +359,7 @@ COMPILACIÓN: React 19 + TypeScript + Motion + Tailwind CSS`;
               </div>
 
               <div className="grid grid-cols-1 gap-2.5">
-                {rulesZeroText.map((rule) => (
+                {filteredZeroText.map((rule) => (
                   <div
                     key={rule.id}
                     className="p-4 rounded-2xl bg-black/50 border border-purple-500/20 hover:border-purple-400/40 transition-colors"
@@ -348,10 +401,7 @@ COMPILACIÓN: React 19 + TypeScript + Motion + Tailwind CSS`;
                   </h3>
                 </div>
                 <button
-                  onClick={() => {
-                    onSelectVersion('netflix-cinema');
-                    onClose();
-                  }}
+                  onClick={handleActivateNetflix}
                   className="text-xs font-mono text-purple-400 hover:text-purple-200 underline"
                 >
                   Activar esta versión →
@@ -359,7 +409,7 @@ COMPILACIÓN: React 19 + TypeScript + Motion + Tailwind CSS`;
               </div>
 
               <div className="grid grid-cols-1 gap-2.5">
-                {rulesNetflix.map((rule) => (
+                {filteredNetflix.map((rule) => (
                   <div
                     key={rule.id}
                     className="p-4 rounded-2xl bg-black/50 border border-purple-500/20 hover:border-purple-400/40 transition-colors"
@@ -400,12 +450,7 @@ COMPILACIÓN: React 19 + TypeScript + Motion + Tailwind CSS`;
             </strong>
           </span>
           <button
-            onClick={() => {
-              onSelectVersion(
-                currentVersion === 'zero-text' ? 'netflix-cinema' : 'zero-text'
-              );
-              onClose();
-            }}
+            onClick={handleToggleVersion}
             className="px-4 py-2 rounded-xl bg-purple-700 hover:bg-purple-600 text-white font-bold transition-all shadow-[0_0_15px_rgba(168,85,247,0.3)]"
           >
             Alternar a Versión {currentVersion === 'zero-text' ? 'Netflix' : '0-Texto'}
@@ -414,4 +459,4 @@ COMPILACIÓN: React 19 + TypeScript + Motion + Tailwind CSS`;
       </motion.div>
     </div>
   );
-};
+});

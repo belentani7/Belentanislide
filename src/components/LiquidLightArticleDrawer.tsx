@@ -1,4 +1,4 @@
-import React from 'react';
+import { memo } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { X, Sparkles, BookOpen, ExternalLink, Atom, Waves, ShieldCheck, Sun } from 'lucide-react';
 import { Repository } from '../types';
@@ -9,11 +9,11 @@ interface LiquidLightArticleDrawerProps {
   onClose: () => void;
 }
 
-export const LiquidLightArticleDrawer: React.FC<LiquidLightArticleDrawerProps> = ({
+export const LiquidLightArticleDrawer = memo(function LiquidLightArticleDrawer({
   repo,
   isOpen,
   onClose,
-}) => {
+}: LiquidLightArticleDrawerProps) {
   if (!isOpen || !repo) return null;
 
   const { liquidLight } = repo;
@@ -40,7 +40,7 @@ export const LiquidLightArticleDrawer: React.FC<LiquidLightArticleDrawerProps> =
                 color: liquidLight.hex,
               }}
             >
-              <Atom className="w-5 h-5 animate-pulse" />
+              <Atom aria-hidden="true" className="w-5 h-5 animate-pulse" />
             </div>
             <div>
               <div className="flex items-center gap-2">
@@ -59,9 +59,10 @@ export const LiquidLightArticleDrawer: React.FC<LiquidLightArticleDrawerProps> =
 
           <button
             onClick={onClose}
+            aria-label="Cerrar panel de luz líquida"
             className="p-2 rounded-2xl bg-purple-950/40 hover:bg-purple-900/60 border border-purple-500/20 text-purple-300 hover:text-white transition-colors"
           >
-            <X className="w-5 h-5" />
+            <X aria-hidden="true" className="w-5 h-5" />
           </button>
         </div>
 
@@ -86,7 +87,7 @@ export const LiquidLightArticleDrawer: React.FC<LiquidLightArticleDrawerProps> =
             </h3>
 
             <div className="text-xs font-mono text-purple-300/80 flex items-center gap-2">
-              <BookOpen className="w-3.5 h-3.5 text-purple-400" />
+              <BookOpen aria-hidden="true" className="w-3.5 h-3.5 text-purple-400" />
               <span>{liquidLight.scientificArticle.source}</span>
             </div>
 
@@ -98,7 +99,7 @@ export const LiquidLightArticleDrawer: React.FC<LiquidLightArticleDrawerProps> =
           {/* Principle of Plasmatic Milky Light at 3% Lux */}
           <div className="p-5 rounded-2xl bg-black/60 border border-purple-500/20 space-y-3">
             <div className="flex items-center gap-2">
-              <Waves className="w-4 h-4 text-purple-400" />
+              <Waves aria-hidden="true" className="w-4 h-4 text-purple-400" />
               <h4 className="font-mono text-xs uppercase tracking-wider text-purple-200 font-bold">
                 PRINCIPIO DE LUZ LECHOSA PLASMÁTICA (MILKY LIGHT)
               </h4>
@@ -130,6 +131,7 @@ export const LiquidLightArticleDrawer: React.FC<LiquidLightArticleDrawerProps> =
           <div className="p-4 rounded-2xl bg-black/40 border border-purple-500/20 flex items-center justify-between">
             <div className="flex items-center gap-3">
               <div
+                aria-hidden="true"
                 className="w-8 h-8 rounded-xl border border-white/20 shadow-lg"
                 style={{ backgroundColor: liquidLight.hex }}
               />
@@ -163,4 +165,4 @@ export const LiquidLightArticleDrawer: React.FC<LiquidLightArticleDrawerProps> =
       </motion.div>
     </div>
   );
-};
+});

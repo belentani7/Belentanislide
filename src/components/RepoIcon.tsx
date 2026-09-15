@@ -1,4 +1,5 @@
-import React, { useState, useRef } from 'react';
+import { memo, useEffect, useRef, useState } from 'react';
+import type { MouseEvent as ReactMouseEvent, TouchEvent as ReactTouchEvent } from 'react';
 import { motion } from 'motion/react';
 
 interface RepoIconProps {
@@ -14,7 +15,7 @@ interface RepoIconProps {
   className?: string;
 }
 
-export const RepoIcon: React.FC<RepoIconProps> = ({
+export const RepoIcon = memo(function RepoIcon({
   glyphType,
   name,
   size = 'md',
@@ -25,10 +26,13 @@ export const RepoIcon: React.FC<RepoIconProps> = ({
   interactive = true,
   onClick,
   className = '',
-}) => {
+}: RepoIconProps) {
   const [isHovered, setIsHovered] = useState(false);
   const [mouseCoord, setMouseCoord] = useState({ x: 50, y: 50 });
   const cardRef = useRef<HTMLDivElement | null>(null);
+  const rafRef = useRef<number>(0);
+
+  useEffect(() => () => { if (rafRef.current) cancelAnimationFrame(rafRef.current); }, []);
 
   const sizeClasses = {
     sm: 'w-10 h-10 rounded-xl',
@@ -46,20 +50,28 @@ export const RepoIcon: React.FC<RepoIconProps> = ({
     cinema: 'w-40 h-40 sm:w-52 sm:h-52 md:w-64 md:h-64',
   };
 
-  const handleMouseMove = (e: React.MouseEvent<HTMLDivElement>) => {
+  const handleMouseMove = (e: ReactMouseEvent<HTMLDivElement>) => {
     if (!interactive || !cardRef.current) return;
     const rect = cardRef.current.getBoundingClientRect();
     const x = Math.max(0, Math.min(100, ((e.clientX - rect.left) / rect.width) * 100));
     const y = Math.max(0, Math.min(100, ((e.clientY - rect.top) / rect.height) * 100));
-    setMouseCoord({ x, y });
+    if (rafRef.current) return;
+    rafRef.current = requestAnimationFrame(() => {
+      setMouseCoord({ x, y });
+      rafRef.current = 0;
+    });
   };
 
-  const handleTouchMove = (e: React.TouchEvent<HTMLDivElement>) => {
+  const handleTouchMove = (e: ReactTouchEvent<HTMLDivElement>) => {
     if (!interactive || !cardRef.current || e.touches.length === 0) return;
     const rect = cardRef.current.getBoundingClientRect();
     const x = Math.max(0, Math.min(100, ((e.touches[0].clientX - rect.left) / rect.width) * 100));
     const y = Math.max(0, Math.min(100, ((e.touches[0].clientY - rect.top) / rect.height) * 100));
-    setMouseCoord({ x, y });
+    if (rafRef.current) return;
+    rafRef.current = requestAnimationFrame(() => {
+      setMouseCoord({ x, y });
+      rafRef.current = 0;
+    });
   };
 
   // Render the distinctive procedural vector glyph
@@ -68,7 +80,7 @@ export const RepoIcon: React.FC<RepoIconProps> = ({
       // 1. OPEN-SCHOOL (Education Priority 1)
       case 'open-school-portal':
         return (
-          <svg viewBox="0 0 100 100" className={`${iconSvgSizes[size]} transition-transform duration-700`}>
+          <svg aria-hidden="true" viewBox="0 0 100 100" className={`${iconSvgSizes[size]} transition-transform duration-700`}>
             <defs>
               <linearGradient id="grad-portal" x1="0%" y1="0%" x2="100%" y2="100%">
                 <stop offset="0%" stopColor="#f3e8ff" />
@@ -104,7 +116,7 @@ export const RepoIcon: React.FC<RepoIconProps> = ({
       // 2. UX-ACADEMY-PROFESSIONAL-PROGRAM (Education Priority 2)
       case 'ux-caliper-matrix':
         return (
-          <svg viewBox="0 0 100 100" className={`${iconSvgSizes[size]} transition-transform duration-700`}>
+          <svg aria-hidden="true" viewBox="0 0 100 100" className={`${iconSvgSizes[size]} transition-transform duration-700`}>
             <defs>
               <linearGradient id="grad-caliper" x1="0%" y1="0%" x2="100%" y2="100%">
                 <stop offset="0%" stopColor="#ffffff" />
@@ -133,7 +145,7 @@ export const RepoIcon: React.FC<RepoIconProps> = ({
       // 3. MANOS ABIERTAS (Education Priority 3)
       case 'hands-open-shield':
         return (
-          <svg viewBox="0 0 100 100" className={`${iconSvgSizes[size]} transition-transform duration-700`}>
+          <svg aria-hidden="true" viewBox="0 0 100 100" className={`${iconSvgSizes[size]} transition-transform duration-700`}>
             <defs>
               <linearGradient id="grad-hands" x1="0%" y1="0%" x2="100%" y2="100%">
                 <stop offset="0%" stopColor="#fdf4ff" />
@@ -156,7 +168,7 @@ export const RepoIcon: React.FC<RepoIconProps> = ({
       // 4. LINGUAFORGE (Education Priority 4)
       case 'lingua-acoustic-forge':
         return (
-          <svg viewBox="0 0 100 100" className={`${iconSvgSizes[size]} transition-transform duration-700`}>
+          <svg aria-hidden="true" viewBox="0 0 100 100" className={`${iconSvgSizes[size]} transition-transform duration-700`}>
             <defs>
               <linearGradient id="grad-forge" x1="0%" y1="0%" x2="100%" y2="100%">
                 <stop offset="0%" stopColor="#ffffff" />
@@ -179,7 +191,7 @@ export const RepoIcon: React.FC<RepoIconProps> = ({
       // 5. LOCAL-AGENT (Education Priority 5)
       case 'local-silicon-monolith':
         return (
-          <svg viewBox="0 0 100 100" className={`${iconSvgSizes[size]} transition-transform duration-700`}>
+          <svg aria-hidden="true" viewBox="0 0 100 100" className={`${iconSvgSizes[size]} transition-transform duration-700`}>
             <defs>
               <linearGradient id="grad-silicon" x1="0%" y1="0%" x2="100%" y2="100%">
                 <stop offset="0%" stopColor="#ffffff" />
@@ -205,7 +217,7 @@ export const RepoIcon: React.FC<RepoIconProps> = ({
       // 6. VOICE CLONE LAB (Education Priority 6)
       case 'vocal-formant-prism':
         return (
-          <svg viewBox="0 0 100 100" className={`${iconSvgSizes[size]} transition-transform duration-700`}>
+          <svg aria-hidden="true" viewBox="0 0 100 100" className={`${iconSvgSizes[size]} transition-transform duration-700`}>
             <defs>
               <linearGradient id="grad-vocal" x1="0%" y1="0%" x2="100%" y2="100%">
                 <stop offset="0%" stopColor="#fdf4ff" />
@@ -229,7 +241,7 @@ export const RepoIcon: React.FC<RepoIconProps> = ({
       // 7. CRUZANDO EL CHARCO (Public Sanctuary)
       case 'sanctuary-beacon-compass':
         return (
-          <svg viewBox="0 0 100 100" className={`${iconSvgSizes[size]} transition-transform duration-700`}>
+          <svg aria-hidden="true" viewBox="0 0 100 100" className={`${iconSvgSizes[size]} transition-transform duration-700`}>
             <defs>
               <linearGradient id="grad-sanctuary" x1="0%" y1="0%" x2="100%" y2="100%">
                 <stop offset="0%" stopColor="#f472b6" />
@@ -253,7 +265,7 @@ export const RepoIcon: React.FC<RepoIconProps> = ({
       // 8. PVC-U-CORE (Public Enterprise Governance)
       case 'governance-cipher-kernel':
         return (
-          <svg viewBox="0 0 100 100" className={`${iconSvgSizes[size]} transition-transform duration-700`}>
+          <svg aria-hidden="true" viewBox="0 0 100 100" className={`${iconSvgSizes[size]} transition-transform duration-700`}>
             <defs>
               <linearGradient id="grad-gov" x1="0%" y1="0%" x2="100%" y2="100%">
                 <stop offset="0%" stopColor="#ffffff" />
@@ -277,7 +289,7 @@ export const RepoIcon: React.FC<RepoIconProps> = ({
       // 9. DUCK ECOSYSTEM (Public Creative Audio)
       case 'cyber-duck-synth':
         return (
-          <svg viewBox="0 0 100 100" className={`${iconSvgSizes[size]} transition-transform duration-700`}>
+          <svg aria-hidden="true" viewBox="0 0 100 100" className={`${iconSvgSizes[size]} transition-transform duration-700`}>
             <defs>
               <linearGradient id="grad-duck" x1="0%" y1="0%" x2="100%" y2="100%">
                 <stop offset="0%" stopColor="#ffffff" />
@@ -301,7 +313,7 @@ export const RepoIcon: React.FC<RepoIconProps> = ({
       // 10. META-SKILL (Public AI Routing)
       case 'neural-router-singularity':
         return (
-          <svg viewBox="0 0 100 100" className={`${iconSvgSizes[size]} transition-transform duration-700`}>
+          <svg aria-hidden="true" viewBox="0 0 100 100" className={`${iconSvgSizes[size]} transition-transform duration-700`}>
             <defs>
               <linearGradient id="grad-router" x1="0%" y1="0%" x2="100%" y2="100%">
                 <stop offset="0%" stopColor="#ffffff" />
@@ -328,7 +340,7 @@ export const RepoIcon: React.FC<RepoIconProps> = ({
       // 11. BELENTANI / NOIACORE LAB (Flagship Singular Core)
       case 'neural-core-singularity':
         return (
-          <svg viewBox="0 0 100 100" className={`${iconSvgSizes[size]} transition-transform duration-700`}>
+          <svg aria-hidden="true" viewBox="0 0 100 100" className={`${iconSvgSizes[size]} transition-transform duration-700`}>
             <defs>
               <radialGradient id="grad-singularity" cx="50%" cy="50%" r="50%">
                 <stop offset="0%" stopColor="#ffffff" />
@@ -351,7 +363,7 @@ export const RepoIcon: React.FC<RepoIconProps> = ({
       // 12. CARQUIDEC (Public Architecture)
       case 'bioclimatic-voronoi-lattice':
         return (
-          <svg viewBox="0 0 100 100" className={`${iconSvgSizes[size]} transition-transform duration-700`}>
+          <svg aria-hidden="true" viewBox="0 0 100 100" className={`${iconSvgSizes[size]} transition-transform duration-700`}>
             <defs>
               <linearGradient id="grad-voronoi" x1="0%" y1="0%" x2="100%" y2="100%">
                 <stop offset="0%" stopColor="#ffffff" />
@@ -373,7 +385,7 @@ export const RepoIcon: React.FC<RepoIconProps> = ({
       // 13. BELENTANI OMEGA (Public Creative Ecosystem)
       case 'omega-harmonic-glyph':
         return (
-          <svg viewBox="0 0 100 100" className={`${iconSvgSizes[size]} transition-transform duration-700`}>
+          <svg aria-hidden="true" viewBox="0 0 100 100" className={`${iconSvgSizes[size]} transition-transform duration-700`}>
             <defs>
               <linearGradient id="grad-omega" x1="0%" y1="0%" x2="100%" y2="100%">
                 <stop offset="0%" stopColor="#ffffff" />
@@ -401,7 +413,7 @@ export const RepoIcon: React.FC<RepoIconProps> = ({
       // 14. AGENTGUARD (Public Security)
       case 'aegis-firewall-shield':
         return (
-          <svg viewBox="0 0 100 100" className={`${iconSvgSizes[size]} transition-transform duration-700`}>
+          <svg aria-hidden="true" viewBox="0 0 100 100" className={`${iconSvgSizes[size]} transition-transform duration-700`}>
             <defs>
               <linearGradient id="grad-aegis" x1="0%" y1="0%" x2="100%" y2="100%">
                 <stop offset="0%" stopColor="#fda4af" />
@@ -422,7 +434,7 @@ export const RepoIcon: React.FC<RepoIconProps> = ({
       // Fallback default
       default:
         return (
-          <svg viewBox="0 0 100 100" className={`${iconSvgSizes[size]}`}>
+          <svg aria-hidden="true" viewBox="0 0 100 100" className={`${iconSvgSizes[size]}`}>
             <circle cx="50" cy="50" r="32" fill="none" stroke="#c084fc" strokeWidth="2" />
             <circle cx="50" cy="50" r="8" fill="#ffffff" />
           </svg>
@@ -438,6 +450,9 @@ export const RepoIcon: React.FC<RepoIconProps> = ({
       onMouseMove={handleMouseMove}
       onTouchMove={handleTouchMove}
       onClick={onClick}
+      role={onClick ? 'button' : undefined}
+      tabIndex={onClick ? 0 : undefined}
+      aria-label={onClick ? `Ver icono ${name}` : undefined}
       className={`relative group flex items-center justify-center select-none cursor-pointer transition-all duration-700 ${sizeClasses[size]} ${className}`}
       style={{
         // Thick reactive real glass styling with ultra-noir backdrop
@@ -453,6 +468,7 @@ export const RepoIcon: React.FC<RepoIconProps> = ({
     >
       {/* ─── 1. "Puff Puff" Diffuse Smoke Layer ─── */}
       <div
+        aria-hidden="true"
         className="absolute -inset-3 pointer-events-none rounded-[inherit] transition-opacity duration-700"
         style={{
           background: `radial-gradient(circle at ${mouseCoord.x}% ${mouseCoord.y}%, ${puffGlow} 0%, transparent 68%)`,
@@ -463,6 +479,7 @@ export const RepoIcon: React.FC<RepoIconProps> = ({
 
       {/* ─── 2. Reactive Liquid Glass Surface Reflection ─── */}
       <div
+        aria-hidden="true"
         className="absolute inset-0 pointer-events-none rounded-[inherit] overflow-hidden"
         style={{
           background: `radial-gradient(circle at ${mouseCoord.x}% ${mouseCoord.y}%, rgba(255, 255, 255, 0.14) 0%, transparent 55%)`,
@@ -480,6 +497,7 @@ export const RepoIcon: React.FC<RepoIconProps> = ({
       {/* ─── 3. Education Star Beacon badge if prioritized ─── */}
       {isEducation && size !== 'sm' && (
         <span
+          aria-hidden="true"
           className="absolute -top-1.5 -right-1.5 flex h-3.5 w-3.5 items-center justify-center rounded-full bg-purple-500 text-[8px] font-bold text-black ring-2 ring-black shadow-[0_0_10px_#c084fc]"
           title="Repositorio de Educación Prioritario"
         >
@@ -500,8 +518,8 @@ export const RepoIcon: React.FC<RepoIconProps> = ({
       </motion.div>
 
       {/* ─── 5. Fine Corner Luminous Accents (HBO Max Style) ─── */}
-      <div className="absolute top-1 left-1 w-1.5 h-1.5 border-t border-l border-purple-200/40 pointer-events-none" />
-      <div className="absolute bottom-1 right-1 w-1.5 h-1.5 border-b border-r border-purple-200/40 pointer-events-none" />
+      <div aria-hidden="true" className="absolute top-1 left-1 w-1.5 h-1.5 border-t border-l border-purple-200/40 pointer-events-none" />
+      <div aria-hidden="true" className="absolute bottom-1 right-1 w-1.5 h-1.5 border-b border-r border-purple-200/40 pointer-events-none" />
     </div>
   );
-};
+});

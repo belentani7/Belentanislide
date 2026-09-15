@@ -1,4 +1,5 @@
-import React, { useRef, useState } from 'react';
+import { memo, useEffect, useRef, useState } from 'react';
+import type { MouseEvent as ReactMouseEvent, TouchEvent as ReactTouchEvent } from 'react';
 import { Repository } from '../types';
 import { RepoIcon } from './RepoIcon';
 import { ExternalLink, Star, GitFork, ArrowUpRight, Sparkles, BookOpen, Layers } from 'lucide-react';
@@ -10,25 +11,36 @@ interface RepoCardProps {
   index: number;
 }
 
-export const RepoCard: React.FC<RepoCardProps> = ({ repo, onInspectIcon, index }) => {
+export const RepoCard = memo(function RepoCard({ repo, onInspectIcon, index }: RepoCardProps) {
   const cardRef = useRef<HTMLDivElement | null>(null);
   const [mousePos, setMousePos] = useState({ x: 50, y: 50 });
   const [isHovered, setIsHovered] = useState(false);
+  const rafRef = useRef<number>(0);
 
-  const handleMouseMove = (e: React.MouseEvent<HTMLDivElement>) => {
+  useEffect(() => () => { if (rafRef.current) cancelAnimationFrame(rafRef.current); }, []);
+
+  const handleMouseMove = (e: ReactMouseEvent<HTMLDivElement>) => {
     if (!cardRef.current) return;
     const rect = cardRef.current.getBoundingClientRect();
     const x = Math.max(0, Math.min(100, ((e.clientX - rect.left) / rect.width) * 100));
     const y = Math.max(0, Math.min(100, ((e.clientY - rect.top) / rect.height) * 100));
-    setMousePos({ x, y });
+    if (rafRef.current) return;
+    rafRef.current = requestAnimationFrame(() => {
+      setMousePos({ x, y });
+      rafRef.current = 0;
+    });
   };
 
-  const handleTouchMove = (e: React.TouchEvent<HTMLDivElement>) => {
+  const handleTouchMove = (e: ReactTouchEvent<HTMLDivElement>) => {
     if (!cardRef.current || e.touches.length === 0) return;
     const rect = cardRef.current.getBoundingClientRect();
     const x = Math.max(0, Math.min(100, ((e.touches[0].clientX - rect.left) / rect.width) * 100));
     const y = Math.max(0, Math.min(100, ((e.touches[0].clientY - rect.top) / rect.height) * 100));
-    setMousePos({ x, y });
+    if (rafRef.current) return;
+    rafRef.current = requestAnimationFrame(() => {
+      setMousePos({ x, y });
+      rafRef.current = 0;
+    });
   };
 
   return (
@@ -65,6 +77,7 @@ export const RepoCard: React.FC<RepoCardProps> = ({ repo, onInspectIcon, index }
     >
       {/* ── Reactive Liquid Spotlight Layer (moves with mouse/touch) ── */}
       <div
+        aria-hidden="true"
         className="pointer-events-none absolute -inset-px transition-opacity duration-700"
         style={{
           background: `radial-gradient(circle at ${mousePos.x}% ${mousePos.y}%, ${repo.iconConfig.puffGlow} 0%, transparent 55%)`,
@@ -75,6 +88,7 @@ export const RepoCard: React.FC<RepoCardProps> = ({ repo, onInspectIcon, index }
 
       {/* ── Fine Light Edge Highlight pseudo ── */}
       <div
+        aria-hidden="true"
         className="pointer-events-none absolute inset-0 rounded-[inherit]"
         style={{
           background: `radial-gradient(circle at ${mousePos.x}% ${mousePos.y}%, rgba(255, 255, 255, 0.12) 0%, transparent 60%)`,
@@ -87,7 +101,7 @@ export const RepoCard: React.FC<RepoCardProps> = ({ repo, onInspectIcon, index }
           <div className="flex items-start justify-between gap-4 mb-4">
             <div className="flex items-center gap-4">
               {/* Clickable Icon with bespoke HD trigger */}
-              <div onClick={() => onInspectIcon(repo)} title="Clic para inspeccionar icono en 4K Studio">
+              <div onClick={() => onInspectIcon(repo)} title="Clic para inspeccionar icono en 4K Studio" role="button" tabIndex={0} aria-label={`Inspeccionar icono ${repo.name} en 4K Studio`} onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') onInspectIcon(repo); }}>
                 <RepoIcon
                   glyphType={repo.iconConfig.glyphType}
                   name={repo.name}
@@ -104,7 +118,7 @@ export const RepoCard: React.FC<RepoCardProps> = ({ repo, onInspectIcon, index }
                 <div className="flex items-center gap-2 mb-1">
                   {repo.isEducation ? (
                     <span className="inline-flex items-center gap-1.5 font-mono text-[9px] tracking-[0.18em] uppercase text-purple-200 bg-purple-950/80 border border-purple-400/40 px-2.5 py-0.5 rounded-full shadow-[0_0_12px_rgba(192,132,252,0.3)]">
-                      <BookOpen className="w-2.5 h-2.5 text-purple-300" />
+                      <BookOpen aria-hidden="true" className="w-2.5 h-2.5 text-purple-300" />
                       EDUCACIÓN · PRIORIDAD 0{repo.priorityOrder}
                     </span>
                   ) : (
@@ -133,9 +147,10 @@ export const RepoCard: React.FC<RepoCardProps> = ({ repo, onInspectIcon, index }
             {/* Quick Inspect Icon Button */}
             <button
               onClick={() => onInspectIcon(repo)}
+              aria-label={`Inspeccionar icono ${repo.name} en alta resolución`}
               className="flex items-center gap-1 font-mono text-[10px] text-purple-300/70 hover:text-white bg-purple-950/40 hover:bg-purple-900/60 border border-purple-500/20 hover:border-purple-400/50 px-3 py-1.5 rounded-xl transition-all shadow-[0_0_12px_rgba(168,85,247,0.15)] shrink-0"
             >
-              <Sparkles className="w-3 h-3 text-purple-400" />
+              <Sparkles aria-hidden="true" className="w-3 h-3 text-purple-400" />
               <span className="hidden sm:inline">Icono HD</span>
             </button>
           </div>
@@ -167,11 +182,11 @@ export const RepoCard: React.FC<RepoCardProps> = ({ repo, onInspectIcon, index }
               </span>
             )}
             <span className="flex items-center gap-1">
-              <Star className="w-3 h-3 text-purple-400/80" />
+              <Star aria-hidden="true" className="w-3 h-3 text-purple-400/80" />
               {repo.stats.stars}
             </span>
             <span className="flex items-center gap-1">
-              <GitFork className="w-3 h-3 text-purple-400/80" />
+              <GitFork aria-hidden="true" className="w-3 h-3 text-purple-400/80" />
               {repo.stats.forks}
             </span>
           </div>
@@ -186,7 +201,7 @@ export const RepoCard: React.FC<RepoCardProps> = ({ repo, onInspectIcon, index }
                 title="Abrir despliegue en vivo"
               >
                 <span>Live</span>
-                <ArrowUpRight className="w-3 h-3" />
+                <ArrowUpRight aria-hidden="true" className="w-3 h-3" />
               </a>
             )}
 
@@ -198,11 +213,11 @@ export const RepoCard: React.FC<RepoCardProps> = ({ repo, onInspectIcon, index }
               title="Ver en GitHub"
             >
               <span>GitHub</span>
-              <ExternalLink className="w-3 h-3" />
+              <ExternalLink aria-hidden="true" className="w-3 h-3" />
             </a>
           </div>
         </div>
       </div>
     </motion.article>
   );
-};
+});

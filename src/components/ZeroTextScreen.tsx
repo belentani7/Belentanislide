@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react';
+import { useState, useEffect, useRef, useMemo, useCallback, memo, type TouchEvent as ReactTouchEvent, type WheelEvent as ReactWheelEvent } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import {
   ChevronLeft,
@@ -24,7 +24,7 @@ interface ZeroTextScreenProps {
   onOpenStudioWorkbench: () => void;
 }
 
-export const ZeroTextScreen: React.FC<ZeroTextScreenProps> = ({
+export const ZeroTextScreen = memo(function ZeroTextScreen({
   repositories,
   lightingMode,
   onLightingChange,
@@ -32,7 +32,7 @@ export const ZeroTextScreen: React.FC<ZeroTextScreenProps> = ({
   onSwitchVersion,
   onOpenRulesModal,
   onOpenStudioWorkbench,
-}) => {
+}: ZeroTextScreenProps) {
   // Sort with education repositories strictly first
   const sortedRepos = useMemo(() => {
     const list = [...repositories];
@@ -59,10 +59,24 @@ export const ZeroTextScreen: React.FC<ZeroTextScreenProps> = ({
     setCurrentIndex((prev) => (prev - 1 + sortedRepos.length) % sortedRepos.length);
   }, [sortedRepos.length]);
 
+  const goToIndex = useCallback(
+    (index: number) => {
+      setDirection(index > currentIndex ? 1 : -1);
+      setCurrentIndex(index);
+    },
+    [currentIndex]
+  );
+
   // Keyboard navigation
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) return;
+      const t = e.target as HTMLElement | null;
+      if (
+        t instanceof HTMLInputElement ||
+        t instanceof HTMLTextAreaElement ||
+        (t && t.isContentEditable)
+      )
+        return;
 
       if (e.key === 'ArrowRight') {
         e.preventDefault();
@@ -86,33 +100,59 @@ export const ZeroTextScreen: React.FC<ZeroTextScreenProps> = ({
   // Touch swipe support (left/right for slides, up for drawer)
   const touchStartX = useRef<number | null>(null);
   const touchStartY = useRef<number | null>(null);
+  const lastWheelRef = useRef(0);
 
-  const handleTouchStart = (e: React.TouchEvent) => {
+  const handleTouchStart = useCallback((e: ReactTouchEvent) => {
     touchStartX.current = e.touches[0].clientX;
     touchStartY.current = e.touches[0].clientY;
-  };
+  }, []);
 
-  const handleTouchEnd = (e: React.TouchEvent) => {
-    if (touchStartX.current === null || touchStartY.current === null) return;
-    const diffX = touchStartX.current - e.changedTouches[0].clientX;
-    const diffY = touchStartY.current - e.changedTouches[0].clientY;
+  const handleTouchEnd = useCallback(
+    (e: ReactTouchEvent) => {
+      if (touchStartX.current === null || touchStartY.current === null) return;
+      const diffX = touchStartX.current - e.changedTouches[0].clientX;
+      const diffY = touchStartY.current - e.changedTouches[0].clientY;
 
-    // Horizontal swipe (prev/next)
-    if (Math.abs(diffX) > Math.abs(diffY) && Math.abs(diffX) > 40) {
-      if (diffX > 0) {
-        goToNext();
-      } else {
-        goToPrev();
+      // Horizontal swipe (prev/next)
+      if (Math.abs(diffX) > Math.abs(diffY) && Math.abs(diffX) > 40) {
+        if (diffX > 0) {
+          goToNext();
+        } else {
+          goToPrev();
+        }
       }
-    }
-    // Vertical swipe up (open glass drawer)
-    else if (diffY > 50 && !isDrawerOpen) {
-      setIsDrawerOpen(true);
-    }
+      // Vertical swipe up (open glass drawer)
+      else if (diffY > 50 && !isDrawerOpen) {
+        setIsDrawerOpen(true);
+      }
 
-    touchStartX.current = null;
-    touchStartY.current = null;
-  };
+      touchStartX.current = null;
+      touchStartY.current = null;
+    },
+    [goToNext, goToPrev, isDrawerOpen]
+  );
+
+  // Wheel throttled navigation (>300ms timestamp)
+  const handleWheel = useCallback(
+    (e: ReactWheelEvent) => {
+      const now = Date.now();
+      if (now - lastWheelRef.current < 300) return;
+      if (Math.abs(e.deltaY) > 28 || Math.abs(e.deltaX) > 28) {
+        lastWheelRef.current = now;
+        if (e.deltaY > 0 || e.deltaX > 0) {
+          goToNext();
+        } else {
+          goToPrev();
+        }
+      }
+    },
+    [goToNext, goToPrev]
+  );
+
+  const handleToggleDrawer = useCallback(() => setIsDrawerOpen((prev) => !prev), []);
+  const handleCloseDrawer = useCallback(() => setIsDrawerOpen(false), []);
+
+  if (!repositories?.length) return null;
 
   const slideVariants = {
     enter: (dir: number) => ({
@@ -146,6 +186,7 @@ export const ZeroTextScreen: React.FC<ZeroTextScreenProps> = ({
   return (
     <div
       className="relative w-full h-[100dvh] flex flex-col justify-between overflow-hidden text-white select-none bg-black"
+      onWheel={handleWheel}
       onTouchStart={handleTouchStart}
       onTouchEnd={handleTouchEnd}
     >
@@ -284,10 +325,8 @@ export const ZeroTextScreen: React.FC<ZeroTextScreenProps> = ({
               {sortedRepos.map((_, i) => (
                 <button
                   key={i}
-                  onClick={() => {
-                    setDirection(i > currentIndex ? 1 : -1);
-                    setCurrentIndex(i);
-                  }}
+                  onClick={() => goToIndex(i)}
+                  aria-label={`Ir al proyecto ${i + 1}`}
                   className={`h-1.5 rounded-full transition-all ${
                     i === currentIndex
                       ? 'w-6 bg-purple-400 shadow-[0_0_8px_#c084fc]'
@@ -304,10 +343,10 @@ export const ZeroTextScreen: React.FC<ZeroTextScreenProps> = ({
       <SwipeUpGlassDrawer
         repo={currentRepo}
         isOpen={isDrawerOpen}
-        onToggle={() => setIsDrawerOpen(!isDrawerOpen)}
-        onClose={() => setIsDrawerOpen(false)}
+        onToggle={handleToggleDrawer}
+        onClose={handleCloseDrawer}
         onInspectIcon={onInspectIcon}
       />
     </div>
   );
-};
+});

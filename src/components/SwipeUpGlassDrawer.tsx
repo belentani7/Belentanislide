@@ -1,4 +1,5 @@
-import React, { useRef } from 'react';
+import { memo, useEffect, useRef, useState } from 'react';
+import type { TouchEvent as ReactTouchEvent } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import {
   ChevronUp,
@@ -26,22 +27,25 @@ interface SwipeUpGlassDrawerProps {
   onOpenArticle?: (repo: Repository) => void;
 }
 
-export const SwipeUpGlassDrawer: React.FC<SwipeUpGlassDrawerProps> = ({
+export const SwipeUpGlassDrawer = memo(function SwipeUpGlassDrawer({
   repo,
   isOpen,
   onToggle,
   onClose,
   onInspectIcon,
   onOpenArticle,
-}) => {
-  const [copied, setCopied] = React.useState(false);
+}: SwipeUpGlassDrawerProps) {
+  const [copied, setCopied] = useState(false);
   const touchStartY = useRef<number | null>(null);
+  const copyTimeoutRef = useRef<number | null>(null);
 
-  const handleTouchStart = (e: React.TouchEvent) => {
+  useEffect(() => () => { if (copyTimeoutRef.current !== null) window.clearTimeout(copyTimeoutRef.current); }, []);
+
+  const handleTouchStart = (e: ReactTouchEvent) => {
     touchStartY.current = e.touches[0].clientY;
   };
 
-  const handleTouchEnd = (e: React.TouchEvent) => {
+  const handleTouchEnd = (e: ReactTouchEvent) => {
     if (touchStartY.current === null) return;
     const diff = touchStartY.current - e.changedTouches[0].clientY;
     // If swiped UP by > 40px, open
@@ -69,7 +73,8 @@ export const SwipeUpGlassDrawer: React.FC<SwipeUpGlassDrawerProps> = ({
 </svg>`;
     navigator.clipboard.writeText(code);
     setCopied(true);
-    setTimeout(() => setCopied(false), 2000);
+    if (copyTimeoutRef.current !== null) window.clearTimeout(copyTimeoutRef.current);
+    copyTimeoutRef.current = window.setTimeout(() => setCopied(false), 2000);
   };
 
   return (
@@ -90,6 +95,7 @@ export const SwipeUpGlassDrawer: React.FC<SwipeUpGlassDrawerProps> = ({
           >
             {/* Real Glass 45 deg Specular Highlight Overlay */}
             <div
+              aria-hidden="true"
               className="absolute inset-0 pointer-events-none rounded-t-[36px] sm:rounded-t-[44px]"
               style={{
                 background:
@@ -99,6 +105,7 @@ export const SwipeUpGlassDrawer: React.FC<SwipeUpGlassDrawerProps> = ({
 
             {/* Ambient Caustic Halo at Top Edge */}
             <div
+              aria-hidden="true"
               className="absolute top-0 inset-x-0 h-1 blur-sm pointer-events-none opacity-60"
               style={{ backgroundColor: repo.liquidLight.hex }}
             />
@@ -106,6 +113,10 @@ export const SwipeUpGlassDrawer: React.FC<SwipeUpGlassDrawerProps> = ({
             {/* Grab Bar Handle */}
             <div
               onClick={onClose}
+              role="button"
+              tabIndex={0}
+              aria-label="Cerrar ventana glass"
+              onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') onClose(); }}
               className="w-16 h-1.5 rounded-full bg-white/30 hover:bg-white/60 mx-auto mb-5 cursor-pointer transition-colors"
               title="Cerrar ventana glass"
             />
@@ -146,10 +157,11 @@ export const SwipeUpGlassDrawer: React.FC<SwipeUpGlassDrawerProps> = ({
 
               <button
                 onClick={onClose}
+                aria-label="Cerrar panel de detalle"
                 className="p-2.5 rounded-2xl bg-white/5 hover:bg-white/15 border border-white/15 text-neutral-300 hover:text-white transition-all cursor-pointer"
                 title="Cerrar"
               >
-                <X className="w-5 h-5" />
+                <X aria-hidden="true" className="w-5 h-5" />
               </button>
             </div>
 
@@ -194,7 +206,7 @@ export const SwipeUpGlassDrawer: React.FC<SwipeUpGlassDrawerProps> = ({
                 <div className="p-4 rounded-2xl bg-white/[0.03] border border-white/10 space-y-2">
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-2 text-xs font-mono text-neutral-400">
-                      <Atom className="w-4 h-4 text-purple-400" />
+                      <Atom aria-hidden="true" className="w-4 h-4 text-purple-400" />
                       <span className="uppercase tracking-wider">FÍSICA DE LUZ LÍQUIDA ASOCIADA</span>
                     </div>
                     {onOpenArticle && (
@@ -226,14 +238,14 @@ export const SwipeUpGlassDrawer: React.FC<SwipeUpGlassDrawerProps> = ({
 
                   {repo.stats.stars > 0 && (
                     <div className="flex items-center gap-1 px-3 py-1.5 rounded-xl bg-white/[0.04] border border-white/10 text-neutral-200">
-                      <Star className="w-3.5 h-3.5 text-yellow-400 fill-yellow-400/80" />
+                      <Star aria-hidden="true" className="w-3.5 h-3.5 text-yellow-400 fill-yellow-400/80" />
                       <span>{repo.stats.stars} Stars</span>
                     </div>
                   )}
 
                   {repo.stats.modules && (
                     <div className="flex items-center gap-1 px-3 py-1.5 rounded-xl bg-white/[0.04] border border-white/10 text-neutral-200">
-                      <Layers className="w-3.5 h-3.5 text-purple-400" />
+                      <Layers aria-hidden="true" className="w-3.5 h-3.5 text-purple-400" />
                       <span>{repo.stats.modules} Módulos</span>
                     </div>
                   )}
@@ -270,7 +282,7 @@ export const SwipeUpGlassDrawer: React.FC<SwipeUpGlassDrawerProps> = ({
                     rel="noopener noreferrer"
                     className="w-full inline-flex items-center justify-center gap-2 px-5 py-3 rounded-2xl bg-white hover:bg-neutral-200 text-black font-bold text-xs font-sans tracking-wide transition-all shadow-[0_0_25px_rgba(255,255,255,0.2)]"
                   >
-                    <Play className="w-4 h-4 fill-black text-black" />
+                    <Play aria-hidden="true" className="w-4 h-4 fill-black text-black" />
                     <span>EXPLORAR DEMO EN VIVO</span>
                   </a>
 
@@ -281,23 +293,24 @@ export const SwipeUpGlassDrawer: React.FC<SwipeUpGlassDrawerProps> = ({
                     }}
                     className="w-full inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-2xl bg-white/5 hover:bg-white/15 border border-white/20 text-white font-medium text-xs font-sans tracking-wide transition-all"
                   >
-                    <Sparkles className="w-4 h-4 text-purple-400" />
+                    <Sparkles aria-hidden="true" className="w-4 h-4 text-purple-400" />
                     <span>INSPECCIÓN 4K VECTORIAL</span>
                   </button>
 
                   <div className="flex items-center gap-2">
                     <button
                       onClick={handleCopySvg}
+                      aria-label={copied ? 'SVG copiado' : 'Copiar SVG del icono'}
                       className="flex-1 inline-flex items-center justify-center gap-1.5 px-3 py-2.5 rounded-2xl bg-black/70 hover:bg-neutral-900 border border-white/15 text-neutral-300 hover:text-white text-xs font-mono transition-all"
                     >
                       {copied ? (
                         <>
-                          <Check className="w-3.5 h-3.5 text-emerald-400" />
+                          <Check aria-hidden="true" className="w-3.5 h-3.5 text-emerald-400" />
                           <span className="text-emerald-400">COPIADO</span>
                         </>
                       ) : (
                         <>
-                          <Copy className="w-3.5 h-3.5 text-purple-400" />
+                          <Copy aria-hidden="true" className="w-3.5 h-3.5 text-purple-400" />
                           <span>COPIAR SVG</span>
                         </>
                       )}
@@ -307,10 +320,11 @@ export const SwipeUpGlassDrawer: React.FC<SwipeUpGlassDrawerProps> = ({
                       href={repo.githubUrl}
                       target="_blank"
                       rel="noopener noreferrer"
+                      aria-label={`Ver ${repo.name} en GitHub`}
                       className="p-2.5 rounded-2xl bg-black/70 hover:bg-neutral-900 border border-white/15 text-neutral-300 hover:text-white transition-all"
                       title="Ver Repositorio en GitHub"
                     >
-                      <Github className="w-4 h-4" />
+                      <Github aria-hidden="true" className="w-4 h-4" />
                     </a>
                   </div>
                 </div>
@@ -321,4 +335,4 @@ export const SwipeUpGlassDrawer: React.FC<SwipeUpGlassDrawerProps> = ({
       </AnimatePresence>
     </div>
   );
-};
+});

@@ -1,4 +1,5 @@
-import React, { useEffect, useRef, useState } from 'react';
+import { memo, useEffect, useRef, useState } from 'react';
+import type { MouseEvent as ReactMouseEvent } from 'react';
 
 interface LiquidPolyFluidOrbProps {
   repoId: string;
@@ -170,13 +171,13 @@ void main() {
 }
 `;
 
-export const LiquidPolyFluidOrb: React.FC<LiquidPolyFluidOrbProps> = ({
+export const LiquidPolyFluidOrb = memo(function LiquidPolyFluidOrb({
   repoId,
   colorHex,
   className = '',
   size = 'lg',
   interactive = true,
-}) => {
+}: LiquidPolyFluidOrbProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const animFrameRef = useRef<number>(0);
   const mouseRef = useRef<{ x: number; y: number; targetX: number; targetY: number }>({
@@ -300,9 +301,7 @@ export const LiquidPolyFluidOrb: React.FC<LiquidPolyFluidOrbProps> = ({
 
     let startTime = performance.now();
 
-    const render = () => {
-      const elapsed = (performance.now() - startTime) * 0.001;
-
+    const drawFrame = (elapsed: number) => {
       // Smooth pointer lerp
       mouseRef.current.x += (mouseRef.current.targetX - mouseRef.current.x) * 0.08;
       mouseRef.current.y += (mouseRef.current.targetY - mouseRef.current.y) * 0.08;
@@ -316,12 +315,55 @@ export const LiquidPolyFluidOrb: React.FC<LiquidPolyFluidOrbProps> = ({
       gl.uniform3f(uColor, rgb[0], rgb[1], rgb[2]);
 
       gl.drawArrays(gl.TRIANGLES, 0, 6);
-      animFrameRef.current = requestAnimationFrame(render);
     };
 
-    render();
+    const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+    // Render estático si el usuario prefiere movimiento reducido
+    if (reduceMotion) {
+      drawFrame(0);
+      return () => {
+        gl.deleteProgram(program);
+        gl.deleteShader(vs);
+        gl.deleteShader(fs);
+        gl.deleteBuffer(quadBuffer);
+      };
+    }
+
+    // Bucle con throttle a ~30fps y pausa en pestaña oculta
+    let lastFrame = 0;
+    let rafId = 0;
+    let isVisible = true;
+
+    const render = (now: number) => {
+      if (!isVisible) return;
+      if (now - lastFrame >= 33) {
+        lastFrame = now;
+        drawFrame((now - startTime) * 0.001);
+      }
+      rafId = requestAnimationFrame(render);
+      animFrameRef.current = rafId;
+    };
+
+    rafId = requestAnimationFrame(render);
+    animFrameRef.current = rafId;
+
+    const handleVisibility = () => {
+      if (document.hidden) {
+        isVisible = false;
+        cancelAnimationFrame(rafId);
+      } else {
+        isVisible = true;
+        lastFrame = performance.now();
+        rafId = requestAnimationFrame(render);
+        animFrameRef.current = rafId;
+      }
+    };
+    document.addEventListener('visibilitychange', handleVisibility);
 
     return () => {
+      document.removeEventListener('visibilitychange', handleVisibility);
+      cancelAnimationFrame(rafId);
       cancelAnimationFrame(animFrameRef.current);
       gl.deleteProgram(program);
       gl.deleteShader(vs);
@@ -330,7 +372,7 @@ export const LiquidPolyFluidOrb: React.FC<LiquidPolyFluidOrbProps> = ({
     };
   }, [colorHex, baseDim]);
 
-  const handleMouseMove = (e: React.MouseEvent<HTMLDivElement>) => {
+  const handleMouseMove = (e: ReactMouseEvent<HTMLDivElement>) => {
     if (!interactive) return;
     const rect = e.currentTarget.getBoundingClientRect();
     mouseRef.current.targetX = e.clientX - rect.left;
@@ -351,6 +393,7 @@ export const LiquidPolyFluidOrb: React.FC<LiquidPolyFluidOrbProps> = ({
     >
       {/* ─── 1. Ultra-Deep Milky Light Ambient Caustic Scatter (Miky Dreamy Light) ─── */}
       <div
+        aria-hidden="true"
         className="absolute rounded-full pointer-events-none transition-all duration-700 blur-2xl opacity-75"
         style={{
           width: baseDim * 0.85,
@@ -364,12 +407,14 @@ export const LiquidPolyFluidOrb: React.FC<LiquidPolyFluidOrbProps> = ({
       {webglSupported ? (
         <canvas
           ref={canvasRef}
+          aria-hidden="true"
           className="relative z-10 w-full h-full pointer-events-none drop-shadow-[0_20px_45px_rgba(0,0,0,0.95)]"
           style={{ width: baseDim, height: baseDim }}
         />
       ) : (
         /* Fallback High-Fidelity SVG if WebGL is disabled */
         <div
+          aria-hidden="true"
           className="relative z-10 rounded-full border border-white/30 flex items-center justify-center"
           style={{
             width: baseDim * 0.75,
@@ -382,6 +427,7 @@ export const LiquidPolyFluidOrb: React.FC<LiquidPolyFluidOrbProps> = ({
 
       {/* ─── 3. Thick Glass Specular Micro-Glare (Optical Brewster Angle Glint) ─── */}
       <div
+        aria-hidden="true"
         className="absolute top-1/4 left-1/4 w-3 h-3 rounded-full bg-white blur-[0.8px] opacity-90 pointer-events-none z-20"
         style={{
           boxShadow: '0 0 12px #ffffff, 0 0 24px rgba(255,255,255,0.8)',
@@ -389,4 +435,4 @@ export const LiquidPolyFluidOrb: React.FC<LiquidPolyFluidOrbProps> = ({
       />
     </div>
   );
-};
+});
