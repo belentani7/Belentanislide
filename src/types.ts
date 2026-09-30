@@ -119,3 +119,54 @@ export type AppViewVersion =
 
 /** Modo de cascada de Apple (haptics + transiciones). */
 export type AppleCascadeMode = 'off' | 'subtle' | 'cinematic';
+/** Categoria de una regla del motor de restricciones de diseno. */
+export interface RuleCategory {
+  /** Identificador corto usado como clave y en las comparaciones. */
+  id: string;
+  /** Descripcion que se muestra al pasar el raton. */
+  desc: string;
+}
+
+/** Gravedad de una regla incumplida. */
+export type RuleSeverity = 'CRITICAL' | 'HIGH' | 'MEDIUM' | 'LOW';
+
+/** Estado de aplicacion de una regla dentro de una escena concreta. */
+export type RuleStatus = 'pass' | 'fail' | 'review';
+
+/** Una regla generada por el motor de restricciones. */
+export interface DesignEngineRule {
+  id: string;
+  category: string;
+  /** Numero de prioridad maestro al que pertenece la regla. */
+  priority: number;
+  severity: RuleSeverity;
+  /** Cuando se aplica la regla, en lenguaje natural. */
+  condition: string;
+  /** Que hay que hacer cuando se cumple la condicion. */
+  action: string;
+  /** Por que importa; es lo que hace la regla defendible ante otra persona. */
+  rationale: string;
+  /** Como comprobar que se ha aplicado bien. */
+  validation: string;
+  status?: RuleStatus;
+}
+
+/** Una prioridad maestra del sistema de diseno. */
+export interface MasterPriority {
+  level: string;
+  number: number;
+  title: string;
+  summary: string;
+  /** Principios o normas asociadas a esta prioridad. */
+  laws: string[];
+}
+
+/** Resultado de evaluar la armonia de una escena. */
+export interface HarmonyReport {
+  /** Indice de armonia de 0 a 100. */
+  harmonicIndex: number;
+  /** Luminancia media de la atmosfera, en cd/m2. */
+  atmosphereLuminance: number;
+  /** Relacion de contraste medida; 4.5 es el minimo legible de WCAG AA. */
+  contrastRatio: number;
+}
